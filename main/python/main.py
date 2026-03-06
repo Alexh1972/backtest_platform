@@ -32,6 +32,7 @@ def get_historical_data(ticker, start=None, end=None, interval="1d"):
         "end": end.isoformat(),
         "interval": interval
     }
+
     redis_conn.publish("stock-response-topic", historical_data.to_json(orient='records'))
 
 pubsub = redis_conn.pubsub()
