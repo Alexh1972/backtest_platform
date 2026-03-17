@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Service
 @Slf4j
@@ -20,7 +21,7 @@ public class StockRequest {
     @Qualifier("stockRequestTopic")
     private final ChannelTopic topic;
 
-    public void publish(StockTopicRequest request) {
+    public void publish(@RequestBody StockTopicRequest request) {
         redisTemplate.convertAndSend(topic.getTopic(), request.toJson());
     }
 }
