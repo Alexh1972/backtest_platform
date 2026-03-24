@@ -10,13 +10,13 @@ import java.time.format.DateTimeFormatter;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
-public class StockTopicRequest {
+public class StockTopicRedisRequest {
     String ticker;
     String start;
     String end;
     String interval;
 
-    public StockTopicRequest(String ticker, String start, String end, String interval) {
+    public StockTopicRedisRequest(String ticker, String start, String end, String interval) {
         this.ticker = ticker;
         this.start = (start != null) ? start : "1900-01-01T00:00:00";
         this.interval = (interval != null) ? interval : "1d";

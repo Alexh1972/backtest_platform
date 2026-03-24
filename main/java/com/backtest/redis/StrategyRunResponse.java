@@ -16,18 +16,8 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class StockResponse implements MessageListener {
-    @Autowired
-    private final StockService stockService;
-
+public class StrategyRunResponse implements MessageListener {
     public void onMessage(Message message, byte[] bytes) {
-        StockTopicRedisResponse response = StockTopicRedisResponse.fromJson(message.toString());
-        List<Stock> stocks = stockService.saveStockResponse(response);
-
-        String monitor = StockTopicLockUtil.getMonitorName(response.getTicker(), response.getStart(), response.getEnd(), response.getInterval());
-        synchronized (monitor) {
-            stockService.getStockLockMap().put(monitor, stocks);
-            monitor.notify();
-        }
+        log.info(message.toString());
     }
 }

@@ -7,9 +7,8 @@ import java.util.Date;
 
 @Component
 @Data
-public class StrategySubmitRequest {
+public class StrategySubmitRedisRequest {
     Date start;
     Date end;
-    String ticker;
     String code;
 }

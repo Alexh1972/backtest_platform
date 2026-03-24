@@ -1,6 +1,6 @@
 package com.backtest.service;
 
-import com.backtest.dto.stock.StockTopicRequest;
+import com.backtest.dto.stock.StockTopicRedisRequest;
 import com.backtest.model.Stock;
 import com.backtest.redis.StockRequest;
 import com.backtest.redis.StockResponse;
@@ -25,10 +25,11 @@ public class StockFetchService {
 
     @Autowired
     private final StockService stockService;
+
     @Autowired
     private StockResponse stockResponse;
 
-    public List<Stock> getStock(StockTopicRequest request) {
+    public List<Stock> getStock(StockTopicRedisRequest request) {
         log.info("[START] Request for stock - {}", request);
         stockRequest.publish(request);
         String monitor = StockTopicLockUtil.getMonitorName(request.getTicker(), request.getStart(), request.getEnd(), request.getInterval());
@@ -45,16 +46,16 @@ public class StockFetchService {
         return null;
     }
 
-    public Map<String, List<Stock>> getStocksSeq(List<StockTopicRequest> requests) {
+    public Map<String, List<Stock>> getStocksSeq(List<StockTopicRedisRequest> requests) {
         Map<String, List<Stock>> ret = new HashMap<>();
 
-        for (StockTopicRequest request : requests) {
+        for (StockTopicRedisRequest request : requests) {
             String monitor = StockTopicLockUtil.getMonitorName(request.getTicker(), request.getStart(), request.getEnd(), request.getInterval());
 
             stockRequest.publish(request);
         }
 
-        for (StockTopicRequest request : requests) {
+        for (StockTopicRedisRequest request : requests) {
             String monitor = StockTopicLockUtil.getMonitorName(request.getTicker(), request.getStart(), request.getEnd(), request.getInterval());
 
             synchronized (monitor) {
@@ -73,10 +74,10 @@ public class StockFetchService {
         return ret;
     }
 
-    public Map<String, List<Stock>> getStocks(List<StockTopicRequest> requests) {
+    public Map<String, List<Stock>> getStocks(List<StockTopicRedisRequest> requests) {
         Map<String, List<Stock>> ret = new HashMap<>();
         try (ExecutorService es = Executors.newFixedThreadPool(20)) {
-            for (StockTopicRequest request : requests) {
+            for (StockTopicRedisRequest request : requests) {
                 es.submit(() -> {
                     ret.put(request.getTicker(), getStock(request));
                 });

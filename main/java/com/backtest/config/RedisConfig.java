@@ -1,6 +1,7 @@
 package com.backtest.config;
 
 import com.backtest.redis.StockResponse;
+import com.backtest.redis.StrategyRunResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,6 +21,8 @@ import org.springframework.data.redis.serializer.GenericToStringSerializer;
 public class RedisConfig {
     private final StockResponse stockResponse;
 
+    private final StrategyRunResponse strategyRunResponse;
+
     @Autowired
     @Qualifier("stockResponseTopic")
     private final ChannelTopic stockResponseTopic;
@@ -28,11 +31,16 @@ public class RedisConfig {
     @Qualifier("stockRequestTopic")
     private final ChannelTopic stockRequestTopic;
 
+    @Autowired
+    @Qualifier("strategyRunResponseTopic")
+    private final ChannelTopic strategyRunResponseTopic;
+
     @Bean
     public RedisMessageListenerContainer container(RedisConnectionFactory connectionFactory) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(stockResponseAdapter(stockResponse), stockResponseTopic);
+        container.addMessageListener(strategyRunResponseAdapter(strategyRunResponse), strategyRunResponseTopic);
         return container;
     }
 
@@ -41,6 +49,10 @@ public class RedisConfig {
         return new MessageListenerAdapter(stockReceiver, "onMessage");
     }
 
+    @Bean
+    public MessageListenerAdapter strategyRunResponseAdapter(StrategyRunResponse strategy) {
+        return new MessageListenerAdapter(strategy, "onMessage");
+    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {

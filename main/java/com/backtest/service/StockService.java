@@ -1,20 +1,14 @@
 package com.backtest.service;
 
 import com.backtest.dto.stock.StockInfo;
-import com.backtest.dto.stock.StockTopicRequest;
-import com.backtest.dto.stock.StockTopicResponse;
+import com.backtest.dto.stock.StockTopicRedisResponse;
 import com.backtest.model.Stock;
-import com.backtest.redis.StockRequest;
 import com.backtest.repository.StockRepository;
-import com.backtest.util.StockTopicLockUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -37,7 +31,7 @@ public class StockService {
                 stockInfo.getStockSplits());
     }
 
-    public List<Stock> saveStockResponse(StockTopicResponse stockTopicResponse) {
+    public List<Stock> saveStockResponse(StockTopicRedisResponse stockTopicResponse) {
         String ticker = stockTopicResponse.getTicker();
 
         List<Stock> stocks = new ArrayList<>();

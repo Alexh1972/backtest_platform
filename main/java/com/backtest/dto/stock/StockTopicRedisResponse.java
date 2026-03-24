@@ -1,6 +1,5 @@
 package com.backtest.dto.stock;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Component
-public class StockTopicResponse {
+public class StockTopicRedisResponse {
     String ticker;
     String start;
     String end;
@@ -22,7 +21,7 @@ public class StockTopicResponse {
     List<StockInfo> data;
 
     @SneakyThrows
-    public static StockTopicResponse fromJson(String json) {
-        return new ObjectMapper().readValue(json, StockTopicResponse.class);
+    public static StockTopicRedisResponse fromJson(String json) {
+        return new ObjectMapper().readValue(json, StockTopicRedisResponse.class);
     }
 }

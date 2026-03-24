@@ -15,4 +15,10 @@ public class TopicConfig {
     public ChannelTopic stockRequestTopic() {
         return new ChannelTopic("stock-request-topic");
     }
+
+    @Bean
+    public ChannelTopic strategyRunRequestTopic() { return new ChannelTopic("strategy-run-request-topic"); }
+
+    @Bean
+    public ChannelTopic strategyRunResponseTopic() { return new ChannelTopic("strategy-run-response-topic"); }
 }

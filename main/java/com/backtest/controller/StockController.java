@@ -1,7 +1,7 @@
 package com.backtest.controller;
 
 import com.backtest.annotations.RequireAuth;
-import com.backtest.dto.stock.StockTopicRequest;
+import com.backtest.dto.stock.StockTopicRedisRequest;
 import com.backtest.model.Stock;
 import com.backtest.service.StockFetchService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,7 +25,7 @@ public class StockController {
 
     @GetMapping
     @RequireAuth
-    public List<Stock> getStock(HttpServletRequest request, @RequestBody StockTopicRequest body) {
+    public List<Stock> getStock(HttpServletRequest request, @RequestBody StockTopicRedisRequest body) {
         return stockService.getStock(body);
     }
 }
