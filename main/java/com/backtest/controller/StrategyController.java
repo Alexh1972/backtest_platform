@@ -41,7 +41,7 @@ public class StrategyController {
     public BaseResponse submitStrategy(HttpServletRequest request, @RequestBody StrategySubmitRedisRequest body) {
         User user = AuthUtil.getUser(request);
         String hash = UUID.randomUUID().toString().replace("-", "");
-        Path path = Paths.get("scripts/" + hash + ".py");
+        Path path = Paths.get("storage/scripts/" + hash + ".py");
 
         try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
             writer.write(new String(Base64.getDecoder().decode(body.getCode())));

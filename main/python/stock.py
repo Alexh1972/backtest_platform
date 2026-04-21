@@ -1,8 +1,9 @@
 import yfinance as yf
 from datetime import datetime
 import json
-from executorService import executor
+from executorService import smallExecutor as executor
 from redisClient import redis_conn
+import traceback
 
 def get_historical_data(ticker, start=None, end=None, interval="1d"):
     if end is None:
@@ -46,6 +47,7 @@ def process_message(message):
             get_historical_data(**obj)
     except Exception as e:
         print(f"Error processing message: {e}")
+        traceback.print_exc()
 
 def run():
     for message in pubsub.listen():

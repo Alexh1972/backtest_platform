@@ -36,11 +36,11 @@ public class StockFetchService {
 
         synchronized (monitor) {
             try {
-                monitor.wait();
+                monitor.wait(5000);
                 log.info("[FINISH] Request for stock - {}", request);
                 return stockService.getStockLockMap().remove(monitor);
             } catch (Exception e) {
-                log.error("Error while waiting for stock response!", e);
+                log.error("[ERROR] Error while waiting for stock {} response!", request.getTicker(), e);
             }
         }
         return null;

@@ -1,5 +1,6 @@
 package com.backtest.service;
 
+import com.backtest.dto.TickerDate;
 import com.backtest.dto.stock.StockInfo;
 import com.backtest.dto.stock.StockTopicRedisResponse;
 import com.backtest.model.Stock;
@@ -8,8 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +25,7 @@ public class StockService {
     public Stock fromStockInfo(String ticker, StockInfo stockInfo) {
         return new Stock(ticker,
                 OffsetDateTime.parse(stockInfo.getDate().replace(" ", "T"))
+                        .withOffsetSameInstant(ZoneOffset.UTC)
                         .toLocalDateTime(),
                 stockInfo.getOpen(),
                 stockInfo.getHigh(),

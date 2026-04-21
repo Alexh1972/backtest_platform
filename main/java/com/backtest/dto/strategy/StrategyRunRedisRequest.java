@@ -14,6 +14,7 @@ public class StrategyRunRedisRequest {
     String start;
     String end;
     String file;
+    Double capital;
 
     @SneakyThrows
     public String toJson() {
