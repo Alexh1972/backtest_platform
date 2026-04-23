@@ -101,10 +101,11 @@ def get_sharpe_ratio(ret, risk):
 
 
 class Simulation:
-    def __init__(self, instance, trading_context, file, start, end):
+    def __init__(self, instance, trading_context, file, start, end, id_strategy):
         self.__instance = instance
         self.__trading_context = trading_context
         self.__file = file
+        self.__id = id_strategy
         self.__start = start
         self.__end = end
 
@@ -225,14 +226,14 @@ class Simulation:
         plt.setp(ax.get_xticklabels(), rotation=45)
         fig.tight_layout()
 
-        fig.savefig(EQUITY_GRAPH_DIR + self.__file + '.png')
+        fig.savefig(EQUITY_GRAPH_DIR + self.__file + '-' + str(self.__id) + '.png')
 
         fig.clf()
         plt.close(fig)
 
     def process_trades(self):
         header = ['Date', 'Side', 'Price', 'Quantity', 'Total_Value']
-        filename = TRADES_DIR + self.__file + '.csv'
+        filename = TRADES_DIR + self.__file + '-' + str(self.__id) + '.csv'
 
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)

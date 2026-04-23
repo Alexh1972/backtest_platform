@@ -5,24 +5,19 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @AllArgsConstructor
-@NoArgsConstructor
 @Data
-@Table(name = "strategy_report", indexes = {
-        @Index(name = "idx_report_lookup", columnList = "tickers, start_date, end_date, file_hash")
-})
-@IdClass(StrategyReportId.class)
 public class StrategyReport {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long strategyReportId;
     private String tickers;
-    @Id
-    private String startDate;
-    @Id
-    private String endDate;
-    @Id
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
     private String fileHash;
 
     private double fullReturn;
@@ -39,4 +34,29 @@ public class StrategyReport {
     private double var95;
     private double skewness;
     private double kurtosis;
+
+    public StrategyReport() {
+        this.strategyReportId = 0L;
+
+        this.tickers = "";
+        this.fileHash = "";
+
+        this.startDate = LocalDateTime.of(1970, 1, 1, 0, 0);
+        this.endDate = LocalDateTime.of(1970, 1, 1, 0, 0);
+
+        this.fullReturn = 0.0;
+        this.annualizedReturn = 0.0;
+        this.dailyReturn = 0.0;
+        this.annualRisk = 0.0;
+        this.dailyRisk = 0.0;
+        this.sharpeRatio = 0.0;
+        this.sortinoRatio = 0.0;
+        this.maxDrawdown = 0.0;
+        this.calmarRatio = 0.0;
+        this.beta = 0.0;
+        this.alpha = 0.0;
+        this.var95 = 0.0;
+        this.skewness = 0.0;
+        this.kurtosis = 0.0;
+    }
 }

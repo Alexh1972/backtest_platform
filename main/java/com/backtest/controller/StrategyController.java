@@ -5,9 +5,12 @@ import com.backtest.dto.BaseResponse;
 import com.backtest.dto.ErrorResponse;
 import com.backtest.dto.strategy.StrategyRunRedisRequest;
 import com.backtest.dto.strategy.StrategySubmitRedisRequest;
+import com.backtest.model.StrategyReport;
 import com.backtest.model.Submission;
 import com.backtest.model.User;
 import com.backtest.redis.StrategyRunRequest;
+import com.backtest.repository.StrategyReportRepository;
+import com.backtest.service.StrategyReportService;
 import com.backtest.service.SubmissionService;
 import com.backtest.util.AuthUtil;
 import jakarta.servlet.ServletResponse;
@@ -36,6 +39,9 @@ public class StrategyController {
     @Autowired
     private final SubmissionService submissionService;
 
+    @Autowired
+    private final StrategyReportService strategyReportService;
+
     @PostMapping("/submit")
     @RequireAuth
     public BaseResponse submitStrategy(HttpServletRequest request, @RequestBody StrategySubmitRedisRequest body) {
@@ -63,6 +69,9 @@ public class StrategyController {
         Submission submission = submissionService.getSubmission(user, body.getFile());
 
         if (submission != null) {
+            StrategyReport strategyReport = new StrategyReport();
+            strategyReport = strategyReportService.save(strategyReport);
+            body.setId(strategyReport.getStrategyReportId());
             strategyRunRequest.publish(body);
             return new BaseResponse("Strategy successfully started!");
         }

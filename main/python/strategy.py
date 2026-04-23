@@ -14,7 +14,7 @@ from simulation import Simulation, TradingContext
 pubsub = redis_conn.pubsub()
 pubsub.subscribe("strategy-run-request-topic")
 
-def run_strategy(file, start, end, tickers, capital):
+def run_strategy(file, start, end, tickers, capital, id):
     start_str = start
     end_str = end
     try:
@@ -40,7 +40,7 @@ def run_strategy(file, start, end, tickers, capital):
             cursor.execute(sql, [tickers_collection, start, end])
 
             column_names = [d[0] for d in cursor.description]
-            simulation = Simulation(instance, trading_context, file, start, end)
+            simulation = Simulation(instance, trading_context, file, start, end, id)
             for row in cursor:
                 row = dict(zip(column_names, row))
                 simulation.update(row)
@@ -52,6 +52,7 @@ def run_strategy(file, start, end, tickers, capital):
                 del sys.modules[file]
 
             report_data = {
+                "id": id,
                 "tickers": ":".join(sorted(tickers)),
                 "startDate": start_str,
                 "endDate": end_str,
@@ -73,10 +74,10 @@ def run_strategy(file, start, end, tickers, capital):
                 "success": True
             }
 
-            print(json.dumps(report_data))
             redis_conn.publish("strategy-run-response-topic", json.dumps(report_data))
     except Exception as e:
         error_payload = {
+            "id": id,
             "tickers": ":".join(sorted(tickers)),
             "startDate": start_str,
             "endDate": end_str,
