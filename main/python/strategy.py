@@ -180,10 +180,6 @@ def run_strategy_docker(file, start, end, tickers, capital, id):
                         'bind': '/tmp/benchmark_rows.json',
                         'mode': 'ro'
                     },
-                    # host_storage_path: {
-                    #     'bind': '/app/storage',
-                    #     'mode': 'rw'
-                    # }
                 }
 
                 command_args = [
@@ -195,16 +191,6 @@ def run_strategy_docker(file, start, end, tickers, capital, id):
                     "--capital", str(capital),
                     "--id", str(id)
                 ]
-
-                # container = dockerClient.containers.run(
-                #     # image="python:3.10-slim",
-                #     image="sim_engine:latest",
-                #     command=command_args,
-                #     volumes=volumes,
-                #     working_dir="/app",
-                #     network_disabled=True,
-                #     remove=True
-                # )
 
                 container = dockerClient.containers.run(
                     image="sim_engine:latest",
