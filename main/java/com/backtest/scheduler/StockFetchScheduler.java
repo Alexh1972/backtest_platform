@@ -54,17 +54,17 @@ public class StockFetchScheduler {
     public void run() {
         log.info("[START] Stock fetch scheduler");
 
-//        Map<String, LocalDateTime> lastDateMap = getLastDates();
-//        List<StockTopicRedisRequest> requests = symbols.stream().map(
-//                s -> {
-//                    return new StockTopicRedisRequest(s,
-//                            lastDateMap.get(s).atZone(ZoneId.of("UTC")).
-//                                    withZoneSameInstant(ZoneId.systemDefault()).toOffsetDateTime()
-//                                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), null, null);
-//                }
-//        ).toList();
-//
-//        stockFetchService.getStocks(requests);
+        Map<String, LocalDateTime> lastDateMap = getLastDates();
+        List<StockTopicRedisRequest> requests = symbols.stream().map(
+                s -> {
+                    return new StockTopicRedisRequest(s,
+                            lastDateMap.get(s).atZone(ZoneId.of("UTC")).
+                                    withZoneSameInstant(ZoneId.systemDefault()).toOffsetDateTime()
+                                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME), null, null);
+                }
+        ).toList();
+
+        stockFetchService.getStocks(requests);
         log.info("[FINISH] Stock fetch scheduler");
     }
 }

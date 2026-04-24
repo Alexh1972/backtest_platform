@@ -8,11 +8,28 @@ from executorService import executor
 from datetime import datetime
 from datetime import timezone
 from database import connection
+import os
+import docker
+import platform
 
 from simulation import Simulation, TradingContext
 
+if platform.system() == "Windows":
+    dockerClient = docker.DockerClient(base_url='npipe:////./pipe/docker_engine')
+else:
+    dockerClient = docker.DockerClient(base_url='unix://var/run/docker.sock')
+
 pubsub = redis_conn.pubsub()
 pubsub.subscribe("strategy-run-request-topic")
+
+
+BASE_DIR = "../../../storage/"
+STOCK_ROWS_DIR = BASE_DIR + "stock_rows/"
+
+def datetime_handler(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 def run_strategy(file, start, end, tickers, capital, id):
     start_str = start
@@ -87,12 +104,106 @@ def run_strategy(file, start, end, tickers, capital, id):
         }
         redis_conn.publish("strategy-run-response-topic", json.dumps(error_payload))
 
+def run_strategy_docker(file, start, end, tickers, capital, id):
+    start_str = start
+    end_str = end
+    try:
+        with connection.cursor() as cursor:
+            obj_type = connection.gettype("SYS.ODCIVARCHAR2LIST")
+
+            start = datetime.fromisoformat(start).astimezone(timezone.utc).replace(tzinfo=None)
+            end = datetime.fromisoformat(end).astimezone(timezone.utc).replace(tzinfo=None)
+
+            tickers_collection = obj_type.newobject(tickers)
+            sql = ("SELECT * "
+                   "FROM stock "
+                   "where "
+                   "ticker in (SELECT column_value FROM TABLE(:1)) AND "
+                   "interval_date between :2 and :3"
+                   "ORDER BY interval_date")
+            cursor.execute(sql, [tickers_collection, start, end])
+
+            column_names = [d[0] for d in cursor.description]
+            rows = [dict(zip(column_names, row)) for row in cursor]
+
+            stock_file_path = STOCK_ROWS_DIR + file + '-' + str(id) + ".json"
+            with open(stock_file_path, "w") as f:
+                json.dump(rows, f, default=datetime_handler)
+
+            with connection.cursor() as cursor:
+                sql = ("SELECT * "
+                       "FROM stock "
+                       "where "
+                       "ticker = 'SPY' AND "
+                       "interval_date between :1 and :2"
+                       "ORDER BY interval_date")
+                cursor.execute(sql, [start, end])
+
+                benchmark_file_path = STOCK_ROWS_DIR + file + '-' + str(id) + "-benchmark.json"
+                rows = [dict(zip(column_names, row)) for row in cursor]
+                with open(benchmark_file_path, "w") as f:
+                    json.dump(rows, f, default=datetime_handler)
+
+            try:
+                current_code_path = os.path.abspath(os.getcwd())
+                host_storage_path = os.path.abspath(os.path.join(current_code_path, BASE_DIR))
+
+                volumes = {
+                    current_code_path: {
+                        'bind': '/app',
+                        'mode': 'ro'
+                    },
+                    host_storage_path: {
+                        'bind': '/app/storage',
+                        'mode': 'rw'
+                    }
+                }
+
+                command_args = [
+                    "python3", "simulation_worker.py",
+                    "--file", str(file),
+                    "--start", start_str,
+                    "--end", end_str,
+                    "--tickers", ",".join(tickers),
+                    "--capital", str(capital),
+                    "--id", str(id)
+                ]
+
+                container = dockerClient.containers.run(
+                    # image="python:3.10-slim",
+                    image="sim_engine:latest",
+                    command=command_args,
+                    volumes=volumes,
+                    working_dir="/app",
+                    network_disabled=True,
+                    remove=True
+                )
+                payload = container.decode('utf-8')
+                redis_conn.publish("strategy-run-response-topic", payload)
+            finally:
+                if os.path.exists(stock_file_path):
+                    os.remove(stock_file_path)
+                if os.path.exists(benchmark_file_path):
+                    os.remove(benchmark_file_path)
+    except Exception as e:
+        print(e)
+        error_payload = {
+            "id": id,
+            "tickers": ":".join(sorted(tickers)),
+            "startDate": start_str,
+            "endDate": end_str,
+            "fileHash": file,
+            "error": str(e),
+            "success": False
+        }
+        redis_conn.publish("strategy-run-response-topic", json.dumps(error_payload))
+
 def process_message(message):
     try:
         if message["type"] == "message":
             json_str = message["data"]
             obj = json.loads(json_str)
-            run_strategy(**obj)
+            run_strategy_docker(**obj)
     except Exception as e:
         print(f"Error processing message: {e}")
 

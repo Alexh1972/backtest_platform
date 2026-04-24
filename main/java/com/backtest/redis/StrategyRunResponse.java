@@ -24,7 +24,6 @@ public class StrategyRunResponse implements MessageListener {
 
     public void onMessage(Message message, byte[] bytes) {
         StrategyRunRedisResponse response = StrategyRunRedisResponse.fromJson(message.toString());
-
         if (!response.isSuccess()) {
             log.error("Error while running strategy! {}", response);
             strategyReportService.delete(response.getId());
@@ -32,6 +31,7 @@ public class StrategyRunResponse implements MessageListener {
         }
 
         StrategyReport report = response.toEntity();
+        report.setStatus(StrategyReport.StrategyReportStatus.COMPLETED);
         strategyReportService.save(report);
     }
 }

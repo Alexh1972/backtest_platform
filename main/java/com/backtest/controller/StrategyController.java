@@ -4,6 +4,7 @@ import com.backtest.annotations.RequireAuth;
 import com.backtest.dto.BaseResponse;
 import com.backtest.dto.ErrorResponse;
 import com.backtest.dto.strategy.StrategyRunRedisRequest;
+import com.backtest.dto.strategy.StrategyRunServerResponse;
 import com.backtest.dto.strategy.StrategySubmitRedisRequest;
 import com.backtest.model.StrategyReport;
 import com.backtest.model.Submission;
@@ -63,7 +64,7 @@ public class StrategyController {
 
     @PostMapping("/run")
     @RequireAuth
-    public BaseResponse runStrategy(HttpServletRequest request, @RequestBody StrategyRunRedisRequest body, ServletResponse servletResponse) {
+    public StrategyRunServerResponse runStrategy(HttpServletRequest request, @RequestBody StrategyRunRedisRequest body, ServletResponse servletResponse) {
         User user = AuthUtil.getUser(request);
 
         Submission submission = submissionService.getSubmission(user, body.getFile());
@@ -73,9 +74,9 @@ public class StrategyController {
             strategyReport = strategyReportService.save(strategyReport);
             body.setId(strategyReport.getStrategyReportId());
             strategyRunRequest.publish(body);
-            return new BaseResponse("Strategy successfully started!");
+            return new StrategyRunServerResponse(strategyReport.getStrategyReportId());
         }
 
-        return new BaseResponse(new ErrorResponse("Error while starting strategy"));
+        return new StrategyRunServerResponse(new ErrorResponse("Error while starting strategy"));
     }
 }

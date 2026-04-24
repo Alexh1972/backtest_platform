@@ -1,16 +1,17 @@
 import math
+from datetime import datetime, timezone
+
 import matplotlib
 import statistics
 import numpy as np
 from scipy.stats import skew, kurtosis
-
-from database import connection
+import re
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import csv
 
-BASE_DIR = "../../../storage/"
+BASE_DIR = "storage/"
 EQUITY_GRAPH_DIR = BASE_DIR + "equity_graphs/"
 TRADES_DIR = BASE_DIR + "trades/"
 
@@ -101,13 +102,21 @@ def get_sharpe_ratio(ret, risk):
 
 
 class Simulation:
-    def __init__(self, instance, trading_context, file, start, end, id_strategy):
+    def __init__(self, instance, trading_context, file, start, end, id_strategy, benchmark_rows):
         self.__instance = instance
         self.__trading_context = trading_context
         self.__file = file
         self.__id = id_strategy
         self.__start = start
         self.__end = end
+        self.__benchmark_rows = [
+            {
+                **row,
+                'INTERVAL_DATE': datetime.fromisoformat(
+                    re.sub(r"(\.\d{6})\d+", r"\1", row['INTERVAL_DATE'])).astimezone(timezone.utc).replace(tzinfo=None)
+            }
+            for row in benchmark_rows
+        ]
 
     def update(self, candle):
         ticker = candle['TICKER']
@@ -162,34 +171,23 @@ class Simulation:
         self.get_benchmark()
 
     def get_benchmark(self):
-        with connection.cursor() as cursor:
-            sql = ("SELECT * "
-                   "FROM stock "
-                   "where "
-                   "ticker = 'SPY' AND "
-                   "interval_date between :1 and :2"
-                   "ORDER BY interval_date")
-            cursor.execute(sql, [self.__start, self.__end])
+        scaling_price = None
+        for row in self.__benchmark_rows:
+            if scaling_price is None:
+                scaling_price = row['CLOSE']
 
-            column_names = [d[0] for d in cursor.description]
-            scaling_price = None
-            for row in cursor:
-                row = dict(zip(column_names, row))
-                if scaling_price is None:
-                    scaling_price = row['CLOSE']
+            self.__trading_context.benchmark[row['INTERVAL_DATE']] = self.__trading_context.initial_capital * row['CLOSE'] / scaling_price
 
-                self.__trading_context.benchmark[row['INTERVAL_DATE']] = self.__trading_context.initial_capital * row['CLOSE'] / scaling_price
+        self.__trading_context.benchmark_sorted_dates = sorted(self.__trading_context.benchmark.keys())
+        self.__trading_context.benchmark_values = [self.__trading_context.benchmark.get(d) for d in self.__trading_context.benchmark_sorted_dates]
 
-            self.__trading_context.benchmark_sorted_dates = sorted(self.__trading_context.benchmark.keys())
-            self.__trading_context.benchmark_values = [self.__trading_context.benchmark.get(d) for d in self.__trading_context.benchmark_sorted_dates]
+        for date in self.__trading_context.benchmark_sorted_dates:
+            day = date.date()
+            self.__trading_context.benchmark_daily[day] = self.__trading_context.benchmark[date]
 
-            for date in self.__trading_context.benchmark_sorted_dates:
-                day = date.date()
-                self.__trading_context.benchmark_daily[day] = self.__trading_context.benchmark[date]
-
-            self.__trading_context.benchmark_daily_sorted_dates = sorted(self.__trading_context.benchmark_daily.keys())
-            for date in self.__trading_context.benchmark_daily_sorted_dates:
-                self.__trading_context.benchmark_daily_values.append(self.__trading_context.benchmark_daily[date])
+        self.__trading_context.benchmark_daily_sorted_dates = sorted(self.__trading_context.benchmark_daily.keys())
+        for date in self.__trading_context.benchmark_daily_sorted_dates:
+            self.__trading_context.benchmark_daily_values.append(self.__trading_context.benchmark_daily[date])
 
     def __plot_benchmark(self, ax):
         sorted_dates = self.__trading_context.benchmark_sorted_dates

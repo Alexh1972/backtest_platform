@@ -3,10 +3,8 @@ package com.backtest.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @AllArgsConstructor
@@ -34,6 +32,15 @@ public class StrategyReport {
     private double var95;
     private double skewness;
     private double kurtosis;
+    private Long lastUpdated;
+
+    @Enumerated(EnumType.STRING)
+    private StrategyReportStatus status = StrategyReportStatus.RUNNING;
+
+
+    public enum StrategyReportStatus {
+        RUNNING, COMPLETED;
+    }
 
     public StrategyReport() {
         this.strategyReportId = 0L;
@@ -58,5 +65,6 @@ public class StrategyReport {
         this.var95 = 0.0;
         this.skewness = 0.0;
         this.kurtosis = 0.0;
+        lastUpdated = System.currentTimeMillis();
     }
 }
