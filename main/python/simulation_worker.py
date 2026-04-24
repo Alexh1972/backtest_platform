@@ -13,6 +13,9 @@ BASE_DIR = "storage/"
 STOCK_ROWS_DIR = BASE_DIR + "stock_rows/"
 
 def main():
+    BASE_OUTPUT = "/tmp/sim_results"
+    os.makedirs(f"{BASE_OUTPUT}/equity_graphs", exist_ok=True)
+    os.makedirs(f"{BASE_OUTPUT}/trades", exist_ok=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=str)
     parser.add_argument("--start", type=str)
@@ -28,15 +31,15 @@ def main():
 
     tickers = args.tickers.split(",")
 
-    data_path = STOCK_ROWS_DIR + args.file + "-" + str(args.id) + ".json"
+    data_path = "/tmp/stock_rows.json"
     with open(data_path, 'r') as f:
         rows = json.load(f)
 
-    data_path = STOCK_ROWS_DIR + args.file + "-" + str(args.id) + "-benchmark.json"
+    data_path = "/tmp/benchmark_rows.json"
     with open(data_path, 'r') as f:
         benchmark_rows = json.load(f)
 
-    module = __import__(args.file)
+    module = __import__("strategy_module")
     class_ = getattr(module, "Strategy")
     trading_context = TradingContext(args.capital)
     instance = class_(trading_context)

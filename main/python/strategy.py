@@ -1,5 +1,7 @@
+import io
 import json
 import sys
+import tarfile
 
 from django.db import connection
 
@@ -104,6 +106,18 @@ def run_strategy(file, start, end, tickers, capital, id):
         }
         redis_conn.publish("strategy-run-response-topic", json.dumps(error_payload))
 
+def copy_from_container(container, src_path, dest_folder):
+    try:
+        bits, stat = container.get_archive(src_path)
+        with io.BytesIO() as buffer:
+            for chunk in bits:
+                buffer.write(chunk)
+            buffer.seek(0)
+            with tarfile.open(fileobj=buffer) as tar:
+                tar.extractall(path=dest_folder)
+    except Exception as e:
+        print(f"Could not find or copy {src_path}: {e}")
+
 def run_strategy_docker(file, start, end, tickers, capital, id):
     start_str = start
     end_str = end
@@ -147,16 +161,29 @@ def run_strategy_docker(file, start, end, tickers, capital, id):
             try:
                 current_code_path = os.path.abspath(os.getcwd())
                 host_storage_path = os.path.abspath(os.path.join(current_code_path, BASE_DIR))
+                module_path = os.path.join(host_storage_path, "scripts", file + '.py')
 
                 volumes = {
+                    os.path.abspath(module_path): {
+                        'bind': '/app/storage/scripts/strategy_module.py',
+                        'mode': 'ro'
+                    },
                     current_code_path: {
                         'bind': '/app',
                         'mode': 'ro'
                     },
-                    host_storage_path: {
-                        'bind': '/app/storage',
-                        'mode': 'rw'
-                    }
+                    os.path.abspath(stock_file_path): {
+                        'bind': '/tmp/stock_rows.json',
+                        'mode': 'ro'
+                    },
+                    os.path.abspath(benchmark_file_path): {
+                        'bind': '/tmp/benchmark_rows.json',
+                        'mode': 'ro'
+                    },
+                    # host_storage_path: {
+                    #     'bind': '/app/storage',
+                    #     'mode': 'rw'
+                    # }
                 }
 
                 command_args = [
@@ -169,16 +196,35 @@ def run_strategy_docker(file, start, end, tickers, capital, id):
                     "--id", str(id)
                 ]
 
+                # container = dockerClient.containers.run(
+                #     # image="python:3.10-slim",
+                #     image="sim_engine:latest",
+                #     command=command_args,
+                #     volumes=volumes,
+                #     working_dir="/app",
+                #     network_disabled=True,
+                #     remove=True
+                # )
+
                 container = dockerClient.containers.run(
-                    # image="python:3.10-slim",
                     image="sim_engine:latest",
                     command=command_args,
-                    volumes=volumes,
                     working_dir="/app",
-                    network_disabled=True,
-                    remove=True
+                    volumes=volumes,
+                    detach=True
                 )
-                payload = container.decode('utf-8')
+                container.wait()
+
+                graph_src = f"/tmp/sim_results/equity_graphs/{file}-{id}.png"
+                trade_src = f"/tmp/sim_results/trades/{file}-{id}.csv"
+
+                host_base = os.path.abspath(BASE_DIR)
+                try:
+                    copy_from_container(container, graph_src, os.path.join(host_base, "equity_graphs"))
+                    copy_from_container(container, trade_src, os.path.join(host_base, "trades"))
+                finally:
+                    payload = container.logs().decode('utf-8')
+                    container.remove(force=True)
                 redis_conn.publish("strategy-run-response-topic", payload)
             finally:
                 if os.path.exists(stock_file_path):

@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import csv
 
-BASE_DIR = "storage/"
+BASE_DIR = "/tmp/sim_results/"
 EQUITY_GRAPH_DIR = BASE_DIR + "equity_graphs/"
 TRADES_DIR = BASE_DIR + "trades/"
 
