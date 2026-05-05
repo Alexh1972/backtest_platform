@@ -27,4 +27,5 @@ public class SubmissionService {
     public List<Submission> getSubmissions(User user) {
         return submissionRepository.getSubmissions(user);
     }
+
 }
