@@ -11,6 +11,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @Query("SELECT s FROM Submission s WHERE s.user=?1 and s.hash=?2")
     Submission getSubmission(User user, String hash);
 
-    @Query("SELECT s FROM Submission s WHERE s.user=?1")
+    @Query("SELECT s FROM Submission s WHERE s.user=?1 ORDER BY s.createdAt DESC")
     List<Submission> getSubmissions(User user);
 }

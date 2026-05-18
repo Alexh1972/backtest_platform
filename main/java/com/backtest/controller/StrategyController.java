@@ -6,6 +6,7 @@ import com.backtest.dto.ErrorResponse;
 import com.backtest.dto.strategy.StrategyRunRedisRequest;
 import com.backtest.dto.strategy.StrategyRunServerResponse;
 import com.backtest.dto.strategy.StrategySubmitRedisRequest;
+import com.backtest.dto.strategy.SubmissionDto;
 import com.backtest.model.StrategyReport;
 import com.backtest.model.Submission;
 import com.backtest.model.User;
@@ -27,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -78,5 +80,53 @@ public class StrategyController {
         }
 
         return new StrategyRunServerResponse(new ErrorResponse("Error while starting strategy"));
+    }
+
+    @GetMapping("/submissions")
+    @RequireAuth
+    public List<SubmissionDto> listSubmissions(HttpServletRequest request) {
+        User user = AuthUtil.getUser(request);
+        return submissionService.getSubmissions(user).stream()
+                .map(SubmissionDto::from)
+                .toList();
+    }
+
+    @GetMapping("/submission/{hash}/code")
+    @RequireAuth
+    public BaseResponse getSubmissionCode(HttpServletRequest request, @PathVariable String hash) {
+        User user = AuthUtil.getUser(request);
+        Submission submission = submissionService.getSubmission(user, hash);
+
+        if (submission == null) {
+            return new BaseResponse(new ErrorResponse("Submission not found"));
+        }
+
+        try {
+            String code = Files.readString(Paths.get("storage/scripts/" + hash + ".py"), StandardCharsets.UTF_8);
+            return new BaseResponse(code);
+        } catch (Exception e) {
+            log.error("Error reading submission code for {}", hash, e);
+            return new BaseResponse(new ErrorResponse("Error reading submission code"));
+        }
+    }
+
+    @GetMapping("/reports")
+    @RequireAuth
+    public List<StrategyReport> listReports(HttpServletRequest request, @RequestParam String hash) {
+        User user = AuthUtil.getUser(request);
+        Submission submission = submissionService.getSubmission(user, hash);
+
+        if (submission == null) {
+            return List.of();
+        }
+
+        return strategyReportService.getReports(hash);
+    }
+
+    @GetMapping("/report/{id}")
+    @RequireAuth
+    public StrategyReport getReport(@PathVariable Long id) {
+        List<StrategyReport> reports = strategyReportService.getReport(id);
+        return reports.isEmpty() ? null : reports.get(0);
     }
 }

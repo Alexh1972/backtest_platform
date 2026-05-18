@@ -25,6 +25,15 @@ public class AuthenticationService {
     private final SessionService sessionService;
 
     public JwtAuthenticationResponse signup(SignUpRequest request) {
+        if (request.getUsername() == null || request.getUsername().isBlank()
+                || request.getPassword() == null || request.getPassword().isBlank()
+                || request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Username, password and email are required.");
+        }
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username is already taken.");
+        }
+
         var user = User
                 .builder()
                 .username(request.getUsername())

@@ -23,4 +23,13 @@ public class Submission {
 
     @Id
     String hash;
+
+    @Column(name = "created_at")
+    Long createdAt;
+
+    public Submission(User user, String hash) {
+        this.user = user;
+        this.hash = hash;
+        this.createdAt = System.currentTimeMillis();
+    }
 }
