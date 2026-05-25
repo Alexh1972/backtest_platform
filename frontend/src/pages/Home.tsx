@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "../components/Header";
-import History, { shortTitle } from "../components/History";
+import History, { resolveTitle } from "../components/History";
 import NewSubmission from "../components/NewSubmission";
 import SubmissionDetail from "../components/SubmissionDetail";
 import Compare from "../components/Compare";
 import { api, ApiError, SubmissionDto } from "../api/client";
+import { setTitle } from "../localStore";
 import { useAuth } from "../auth";
 import { useNavigate } from "react-router-dom";
 
+const DEFAULT_TITLE = "submission.py";
+
+type Draft = {
+  id: string;
+  title: string;
+  code: string;
+  start: string;
+  end: string;
+  createdAt: number;
+};
+
 type View =
-  | { kind: "new" }
+  | { kind: "empty" }
+  | { kind: "draft"; id: string }
   | { kind: "detail"; hash: string }
   | { kind: "compare"; hashes: [string, string] };
 
@@ -26,13 +39,32 @@ function parseJwtUsername(token: string | null): string | null {
   }
 }
 
+function toIsoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function makeDraft(): Draft {
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - 1);
+  return {
+    id: `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    title: DEFAULT_TITLE,
+    code: "",
+    start: toIsoDate(start),
+    end: toIsoDate(new Date()),
+    createdAt: Date.now(),
+  };
+}
+
 export default function Home() {
   const { token, logout } = useAuth();
   const navigate = useNavigate();
   const username = useMemo(() => parseJwtUsername(token), [token]);
 
+  // Start empty: no draft until the user clicks "+ New submission".
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
-  const [view, setView] = useState<View>({ kind: "new" });
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [view, setView] = useState<View>({ kind: "empty" });
   const [compareHashes, setCompareHashes] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -58,10 +90,34 @@ export default function Home() {
   const titleFor = useCallback(
     (hash: string): string => {
       const idx = submissions.findIndex((s) => s.hash === hash);
-      return idx >= 0 ? shortTitle(hash, idx) : hash.slice(0, 8);
+      return idx >= 0 ? resolveTitle(hash, idx) : hash.slice(0, 8);
     },
     [submissions]
   );
+
+  // Add a fresh draft on top of the list; previous drafts stay and move down.
+  function startNew() {
+    const d = makeDraft();
+    setDrafts((prev) => [d, ...prev]);
+    setView({ kind: "draft", id: d.id });
+  }
+
+  function updateDraft(id: string, patch: Partial<Draft>) {
+    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  }
+
+  function discardDraft(id: string) {
+    const remaining = drafts.filter((d) => d.id !== id);
+    const wasActive = view.kind === "draft" && view.id === id;
+    setDrafts(remaining);
+    if (wasActive) {
+      setView(
+        remaining.length > 0
+          ? { kind: "draft", id: remaining[0].id }
+          : { kind: "empty" }
+      );
+    }
+  }
 
   function toggleCompare(hash: string) {
     setCompareHashes((prev) => {
@@ -77,24 +133,33 @@ export default function Home() {
     }
   }
 
+  const activeDraft =
+    view.kind === "draft" ? drafts.find((d) => d.id === view.id) ?? null : null;
+
   return (
     <div className="app">
       <Header username={username} />
       <div className="body">
         <History
+          drafts={drafts.map((d) => ({ id: d.id, title: d.title, createdAt: d.createdAt }))}
+          activeDraftId={view.kind === "draft" ? view.id : null}
           submissions={submissions}
           focusedHash={view.kind === "detail" ? view.hash : null}
           compareHashes={compareHashes}
+          onSelectDraft={(id) => setView({ kind: "draft", id })}
+          onDiscardDraft={discardDraft}
           onFocus={(h) => setView({ kind: "detail", hash: h })}
           onToggleCompare={toggleCompare}
-          onNew={() => setView({ kind: "new" })}
+          onNew={startNew}
           onCompare={startCompare}
           onClearCompare={() => setCompareHashes([])}
         />
         <main className="main">
           <div className="main-toolbar">
             <div className="title">
-              {view.kind === "new" && "New submission"}
+              {view.kind === "draft" &&
+                activeDraft &&
+                (activeDraft.title.trim() || DEFAULT_TITLE)}
               {view.kind === "detail" && titleFor(view.hash)}
               {view.kind === "compare" &&
                 `Compare: ${titleFor(view.hashes[0])} vs ${titleFor(view.hashes[1])}`}
@@ -105,9 +170,26 @@ export default function Home() {
               <div className="message error">{loadError}</div>
             </div>
           )}
-          {view.kind === "new" && (
+          {(view.kind === "empty" ||
+            (view.kind === "draft" && !activeDraft)) && (
+            <div className="main-content">
+              <div className="empty">
+                Nothing open. Click “+ New submission” to start, or pick one
+                from the history.
+              </div>
+            </div>
+          )}
+          {view.kind === "draft" && activeDraft && (
             <NewSubmission
-              onSubmitted={async (hash) => {
+              key={activeDraft.id}
+              title={activeDraft.title}
+              code={activeDraft.code}
+              start={activeDraft.start}
+              end={activeDraft.end}
+              onChange={(patch) => updateDraft(activeDraft.id, patch)}
+              onSubmitted={async (hash, title) => {
+                setTitle(hash, title);
+                setDrafts((prev) => prev.filter((d) => d.id !== activeDraft.id));
                 await refresh();
                 setView({ kind: "detail", hash });
               }}

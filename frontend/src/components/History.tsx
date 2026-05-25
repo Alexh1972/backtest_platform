@@ -1,9 +1,16 @@
 import { SubmissionDto } from "../api/client";
+import { getTitle } from "../localStore";
+
+type DraftInfo = { id: string; title: string; createdAt: number };
 
 type Props = {
+  drafts: DraftInfo[];
+  activeDraftId: string | null;
   submissions: SubmissionDto[];
   focusedHash: string | null;
   compareHashes: string[];
+  onSelectDraft: (id: string) => void;
+  onDiscardDraft: (id: string) => void;
   onFocus: (hash: string) => void;
   onToggleCompare: (hash: string) => void;
   onNew: () => void;
@@ -24,16 +31,27 @@ export function shortTitle(hash: string, idx: number): string {
   return `submit${idx + 1}`;
 }
 
+// Prefer the user-chosen title (kept in localStorage); fall back to submitN.
+export function resolveTitle(hash: string, idx: number): string {
+  return getTitle(hash) ?? shortTitle(hash, idx);
+}
+
 export default function History({
+  drafts,
+  activeDraftId,
   submissions,
   focusedHash,
   compareHashes,
+  onSelectDraft,
+  onDiscardDraft,
   onFocus,
   onToggleCompare,
   onNew,
   onCompare,
   onClearCompare,
 }: Props) {
+  const isEmpty = drafts.length === 0 && submissions.length === 0;
+
   return (
     <aside className="history">
       <h2>History</h2>
@@ -46,9 +64,36 @@ export default function History({
         <div style={{ textAlign: "center" }}>Compare</div>
       </div>
       <div className="rows">
-        {submissions.length === 0 && (
-          <div className="empty">No submissions yet</div>
-        )}
+        {isEmpty && <div className="empty">No submissions yet</div>}
+
+        {drafts.map((d) => {
+          const active = activeDraftId === d.id;
+          return (
+            <div
+              key={d.id}
+              className={`row draft${active ? " active" : ""}`}
+              onClick={() => onSelectDraft(d.id)}
+              title="Unsaved submission"
+            >
+              <div>{d.title.trim() || "submission.py"}</div>
+              <div>{formatDate(d.createdAt)}</div>
+              <div className="compare">
+                <button
+                  className="discard"
+                  title="Discard draft"
+                  aria-label="Discard draft"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDiscardDraft(d.id);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
         {submissions.map((s, idx) => {
           const checked = compareHashes.includes(s.hash);
           const active = focusedHash === s.hash;
@@ -59,7 +104,7 @@ export default function History({
               onClick={() => onFocus(s.hash)}
               title={s.hash}
             >
-              <div>{shortTitle(s.hash, idx)}</div>
+              <div>{resolveTitle(s.hash, idx)}</div>
               <div>{formatDate(s.createdAt)}</div>
               <div
                 className="compare"

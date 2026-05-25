@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
+import { useTheme } from "../theme";
 
 function ShareIcon() {
   return (
@@ -35,6 +36,7 @@ function UserIcon() {
 export default function Header({ username }: { username?: string | null }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -67,15 +69,65 @@ export default function Header({ username }: { username?: string | null }) {
         </div>
         {open && (
           <div className="user-dropdown">
-            {username && <div className="username">{username}</div>}
-            <div
-              className="item"
-              onClick={() => {
-                logout();
-                navigate("/login", { replace: true });
-              }}
-            >
-              Sign out
+            <div className="ud-id">
+              <div className="ud-avatar">
+                <UserIcon />
+              </div>
+              <div className="ud-info">
+                <div className="ud-name">{username ?? "User"}</div>
+                <div className="ud-email">email@placeholder.com</div>
+              </div>
+            </div>
+
+            <div className="ud-section">
+              <button
+                className="ud-action"
+                title="Coming soon"
+                onClick={() => {
+                  /* not wired yet */
+                }}
+              >
+                Change password
+              </button>
+              <button
+                className="ud-action"
+                title="Coming soon"
+                onClick={() => {
+                  /* not wired yet */
+                }}
+              >
+                Change username
+              </button>
+            </div>
+
+            <div className="ud-section">
+              <div className="ud-label">Display</div>
+              <div className="ud-toggle">
+                <button
+                  className={theme === "light" ? "active" : ""}
+                  onClick={() => setTheme("light")}
+                >
+                  ☀ Light
+                </button>
+                <button
+                  className={theme === "dark" ? "active" : ""}
+                  onClick={() => setTheme("dark")}
+                >
+                  ☾ Dark
+                </button>
+              </div>
+            </div>
+
+            <div className="ud-section">
+              <div
+                className="ud-signout"
+                onClick={() => {
+                  logout();
+                  navigate("/login", { replace: true });
+                }}
+              >
+                Sign out
+              </div>
             </div>
           </div>
         )}

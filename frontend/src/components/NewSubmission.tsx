@@ -1,22 +1,30 @@
 import { ChangeEvent, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 
+type DraftPatch = Partial<{
+  title: string;
+  code: string;
+  start: string;
+  end: string;
+}>;
+
 type Props = {
-  onSubmitted: (hash: string) => void;
+  title: string;
+  code: string;
+  start: string;
+  end: string;
+  onChange: (patch: DraftPatch) => void;
+  onSubmitted: (hash: string, title: string) => void;
 };
 
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-export default function NewSubmission({ onSubmitted }: Props) {
-  const [code, setCode] = useState("");
-  const [start, setStart] = useState(() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    return toIsoDate(d);
-  });
-  const [end, setEnd] = useState(() => toIsoDate(new Date()));
+export default function NewSubmission({
+  title,
+  code,
+  start,
+  end,
+  onChange,
+  onSubmitted,
+}: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,7 +33,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     const text = await file.text();
-    setCode(text);
+    onChange({ code: text });
   }
 
   async function submit() {
@@ -43,7 +51,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
         return;
       }
       const hash = res.message;
-      if (hash) onSubmitted(hash);
+      if (hash) onSubmitted(hash, title.trim() || "submission.py");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Submission failed");
     } finally {
@@ -56,6 +64,19 @@ export default function NewSubmission({ onSubmitted }: Props) {
       {error && <div className="message error">{error}</div>}
 
       <div className="section">
+        <h3>File name</h3>
+        <div className="form-row" style={{ marginBottom: 0 }}>
+          <label>Title</label>
+          <input
+            type="text"
+            value={title}
+            placeholder="submission.py"
+            onChange={(e) => onChange({ title: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="section">
         <h3>Backtest range</h3>
         <div className="row-flex">
           <div className="form-row" style={{ marginBottom: 0 }}>
@@ -63,7 +84,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
             <input
               type="date"
               value={start}
-              onChange={(e) => setStart(e.target.value)}
+              onChange={(e) => onChange({ start: e.target.value })}
             />
           </div>
           <div className="form-row" style={{ marginBottom: 0 }}>
@@ -71,7 +92,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
             <input
               type="date"
               value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => onChange({ end: e.target.value })}
             />
           </div>
         </div>
@@ -96,11 +117,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
               onChange={onFile}
             />
             <button onClick={() => fileRef.current?.click()}>Upload file</button>
-            <button
-              className="primary"
-              disabled={loading}
-              onClick={submit}
-            >
+            <button className="primary" disabled={loading} onClick={submit}>
               {loading ? <span className="spinner" /> : "Submit"}
             </button>
           </div>
@@ -109,7 +126,7 @@ export default function NewSubmission({ onSubmitted }: Props) {
           className="code-area"
           placeholder="# Paste your strategy code here, or upload a .py file"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => onChange({ code: e.target.value })}
           spellCheck={false}
         />
       </div>
