@@ -3,7 +3,7 @@ package com.backtest.dto.strategy;
 import com.backtest.dto.stock.StockTopicRedisResponse;
 import com.backtest.model.StrategyReport;
 import lombok.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;

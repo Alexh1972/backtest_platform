@@ -2,7 +2,7 @@ package com.backtest.dto.stock;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
