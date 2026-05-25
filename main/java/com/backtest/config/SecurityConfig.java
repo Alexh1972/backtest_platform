@@ -52,11 +52,14 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/h2", "/h2/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup", "/api/signin").permitAll()
                         .requestMatchers(HttpMethod.GET, "/", "/login", "/register", "/index.html").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )
+                // The H2 console renders inside a frame; allow it from the same origin.
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             if (!request.getRequestURI().startsWith("/api") && !request.getRequestURI().startsWith("/error")) {
