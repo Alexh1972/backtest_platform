@@ -11,6 +11,14 @@ import { useNavigate } from "react-router-dom";
 
 const DEFAULT_TITLE = "submission.py";
 
+const STRATEGY_TEMPLATE = `class Strategy:
+    def __init__(self, trading_context):
+        self.__trading_context = trading_context
+
+    def onCandle(self, candle):
+        pass
+`;
+
 type Draft = {
   id: string;
   title: string;
@@ -49,7 +57,7 @@ function makeDraft(): Draft {
   return {
     id: `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     title: DEFAULT_TITLE,
-    code: "",
+    code: STRATEGY_TEMPLATE,
     start: toIsoDate(start),
     end: toIsoDate(new Date()),
     createdAt: Date.now(),

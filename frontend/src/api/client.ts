@@ -71,6 +71,18 @@ export type StrategyRunRequest = {
   capital: number;
 };
 
+// The Authorization header cannot be sent on <img src> or download links, but
+// the JWT filter also accepts the token as a query parameter.
+export function reportImageUrl(id: number): string {
+  const token = localStorage.getItem(STORAGE_KEY) ?? "";
+  return `/api/strategy/report/${id}/image?token=${encodeURIComponent(token)}`;
+}
+
+export function reportTradesUrl(id: number): string {
+  const token = localStorage.getItem(STORAGE_KEY) ?? "";
+  return `/api/strategy/report/${id}/trades?token=${encodeURIComponent(token)}`;
+}
+
 export class ApiError extends Error {
   status: number;
   body: unknown;

@@ -1,5 +1,11 @@
-import { useEffect, useState } from "react";
-import { api, ApiError, StrategyReport } from "../api/client";
+import { useEffect, useMemo, useState } from "react";
+import {
+  api,
+  ApiError,
+  reportImageUrl,
+  reportTradesUrl,
+  StrategyReport,
+} from "../api/client";
 import RunModal from "./RunModal";
 
 type Props = {
@@ -41,6 +47,9 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
   const [info, setInfo] = useState<string | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +57,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     setError(null);
     setInfo(null);
     setEditing(false);
+    setSelectedRunId(null);
     Promise.all([api.getSubmissionCode(hash), api.listReports(hash)])
       .then(([codeRes, reps]) => {
         if (cancelled) return;
@@ -71,6 +81,41 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
       cancelled = true;
     };
   }, [hash]);
+
+  // Default the selection to the most recent run whenever the list changes.
+  useEffect(() => {
+    if (reports.length === 0) {
+      setSelectedRunId(null);
+      return;
+    }
+    setSelectedRunId((cur) =>
+      cur != null && reports.some((r) => r.strategyReportId === cur)
+        ? cur
+        : reports[reports.length - 1].strategyReportId
+    );
+  }, [reports]);
+
+  const selected = useMemo(
+    () => reports.find((r) => r.strategyReportId === selectedRunId) ?? null,
+    [reports, selectedRunId]
+  );
+
+  // Reset the image error flag when switching runs.
+  useEffect(() => {
+    setImgError(false);
+  }, [selectedRunId]);
+
+  async function refreshReports() {
+    setRefreshing(true);
+    try {
+      const reps = await api.listReports(hash);
+      setReports(reps);
+    } catch {
+      /* ignore */
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function resubmit() {
     setError(null);
@@ -113,14 +158,12 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     );
   }
 
-  const latest = reports.length > 0 ? reports[reports.length - 1] : null;
-
   return (
     <div className="main-content">
       {error && <div className="message error">{error}</div>}
       {info && <div className="message ok">{info}</div>}
 
-      <div className="section" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div className="section">
         <div
           style={{
             display: "flex",
@@ -146,12 +189,16 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
             <button
               className="primary"
               disabled={resubmitting || !editing}
-              title={editing ? "Submit edited code as new submission" : "Click Edit code to make a new submission"}
+              title={editing ? "Submit edited code as a new submission" : "Click Edit code to make a new submission"}
               onClick={resubmit}
             >
               {resubmitting ? <span className="spinner" /> : "Submit"}
             </button>
-            <button className="primary" onClick={() => setRunOpen(true)}>
+            <button
+              className="primary"
+              title="Run this strategy over a period you choose — no new submission needed"
+              onClick={() => setRunOpen(true)}
+            >
               Run
             </button>
           </div>
@@ -160,42 +207,102 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
         {editing ? (
           <textarea
             className="code-area"
+            style={{ maxHeight: "42vh" }}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             spellCheck={false}
           />
         ) : (
-          <pre className="code-view">{code}</pre>
+          <pre className="code-view" style={{ maxHeight: "42vh" }}>{code}</pre>
         )}
       </div>
 
       <div className="section">
-        <h3>Runs ({reports.length})</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>Runs ({reports.length})</h3>
+          <button onClick={refreshReports} disabled={refreshing}>
+            {refreshing ? <span className="spinner" /> : "Refresh"}
+          </button>
+        </div>
+
         {reports.length === 0 ? (
           <div className="empty" style={{ padding: 16 }}>
-            No runs yet. Click Run to start one.
+            No runs yet. Click <b>Run</b> to start one — you can pick the period
+            and tickers each time, without creating a new submission.
           </div>
         ) : (
-          <div>
-            {latest && (
-              <div style={{ marginBottom: 8, fontSize: 13, color: "var(--muted)" }}>
-                Latest run #{latest.strategyReportId} · {latest.status}
-                {latest.tickers && ` · ${latest.tickers}`}
-              </div>
-            )}
-            <div className="compare-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <div className="cell head">Metric</div>
-              <div className="cell head">Latest run</div>
-              {METRIC_LABELS.map(([key, label]) => (
-                <div key={key} style={{ display: "contents" }}>
-                  <div className="cell metric">{label}</div>
-                  <div className="cell">
-                    {latest ? formatMetric(latest[key]) : "—"}
-                  </div>
-                </div>
+          <>
+            <div className="run-chips">
+              {reports.map((r) => (
+                <button
+                  key={r.strategyReportId}
+                  className={`run-chip${
+                    r.strategyReportId === selectedRunId ? " active" : ""
+                  }`}
+                  onClick={() => setSelectedRunId(r.strategyReportId)}
+                >
+                  #{r.strategyReportId}
+                  <span className={`dot ${r.status === "COMPLETED" ? "ok" : "run"}`} />
+                </button>
               ))}
             </div>
-          </div>
+
+            {selected && (
+              <>
+                <div style={{ margin: "10px 0", fontSize: 13, color: "var(--muted)" }}>
+                  Run #{selected.strategyReportId} · {selected.status}
+                  {selected.tickers && ` · ${selected.tickers}`}
+                  {selected.startDate &&
+                    ` · ${selected.startDate?.slice(0, 10)} → ${selected.endDate?.slice(0, 10)}`}
+                </div>
+
+                <div className="compare-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="cell head">Metric</div>
+                  <div className="cell head">Value</div>
+                  {METRIC_LABELS.map(([key, label]) => (
+                    <div key={key} style={{ display: "contents" }}>
+                      <div className="cell metric">{label}</div>
+                      <div className="cell">{formatMetric(selected[key])}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="run-artifacts">
+                  <div className="artifact-head">
+                    <h4>Equity curve</h4>
+                    <a
+                      className="csv-link"
+                      href={reportTradesUrl(selected.strategyReportId)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      ⬇ Download trades CSV
+                    </a>
+                  </div>
+                  {imgError ? (
+                    <div className="empty" style={{ padding: 24 }}>
+                      Equity chart not available yet — it is generated by the
+                      worker once the run completes.
+                    </div>
+                  ) : (
+                    <img
+                      className="report-image"
+                      src={reportImageUrl(selected.strategyReportId)}
+                      alt={`Equity curve for run ${selected.strategyReportId}`}
+                      onError={() => setImgError(true)}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
 
@@ -203,12 +310,15 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
         <RunModal
           fileHash={hash}
           onClose={() => setRunOpen(false)}
-          onStarted={() => {
+          onStarted={(reportId) => {
             setRunOpen(false);
-            setInfo("Run started. Reload in a few seconds to see metrics.");
+            setInfo("Run started. Click Refresh in a few seconds to see metrics and the chart.");
             api
               .listReports(hash)
-              .then((reps) => setReports(reps))
+              .then((reps) => {
+                setReports(reps);
+                setSelectedRunId(reportId);
+              })
               .catch(() => undefined);
           }}
         />
