@@ -20,9 +20,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -128,5 +132,51 @@ public class StrategyController {
     public StrategyReport getReport(@PathVariable Long id) {
         List<StrategyReport> reports = strategyReportService.getReport(id);
         return reports.isEmpty() ? null : reports.get(0);
+    }
+
+    @GetMapping("/report/{id}/image")
+    @RequireAuth
+    public ResponseEntity<byte[]> getReportImage(HttpServletRequest request, @PathVariable Long id) {
+        return serveArtifact(request, id, "equity_graphs", ".png", MediaType.IMAGE_PNG, null);
+    }
+
+    @GetMapping("/report/{id}/trades")
+    @RequireAuth
+    public ResponseEntity<byte[]> getReportTrades(HttpServletRequest request, @PathVariable Long id) {
+        return serveArtifact(request, id, "trades", ".csv", MediaType.parseMediaType("text/csv"),
+                "attachment; filename=\"trades-" + id + ".csv\"");
+    }
+
+    private ResponseEntity<byte[]> serveArtifact(HttpServletRequest request, Long id, String subDir,
+                                                 String extension, MediaType mediaType, String contentDisposition) {
+        User user = AuthUtil.getUser(request);
+
+        List<StrategyReport> reports = strategyReportService.getReport(id);
+        if (reports.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        StrategyReport report = reports.get(0);
+
+        // A user may only access artifacts belonging to their own submissions.
+        if (submissionService.getSubmission(user, report.getFileHash()) == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Path path = Paths.get("storage/" + subDir + "/" + report.getFileHash() + "-" + id + extension);
+        if (!Files.exists(path)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            byte[] content = Files.readAllBytes(path);
+            ResponseEntity.BodyBuilder builder = ResponseEntity.ok().contentType(mediaType);
+            if (contentDisposition != null) {
+                builder.header("Content-Disposition", contentDisposition);
+            }
+            return builder.body(content);
+        } catch (IOException e) {
+            log.error("Error reading {} artifact for report {}", subDir, id, e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
