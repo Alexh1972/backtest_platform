@@ -32,7 +32,7 @@ type View =
   | { kind: "empty" }
   | { kind: "draft"; id: string }
   | { kind: "detail"; hash: string }
-  | { kind: "compare"; hashes: [string, string] };
+  | { kind: "compare" };
 
 function parseJwtUsername(token: string | null): string | null {
   if (!token) return null;
@@ -73,7 +73,6 @@ export default function Home() {
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [view, setView] = useState<View>({ kind: "empty" });
-  const [compareHashes, setCompareHashes] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -127,20 +126,6 @@ export default function Home() {
     }
   }
 
-  function toggleCompare(hash: string) {
-    setCompareHashes((prev) => {
-      if (prev.includes(hash)) return prev.filter((h) => h !== hash);
-      if (prev.length >= 2) return [prev[1], hash];
-      return [...prev, hash];
-    });
-  }
-
-  function startCompare() {
-    if (compareHashes.length === 2) {
-      setView({ kind: "compare", hashes: [compareHashes[0], compareHashes[1]] });
-    }
-  }
-
   const activeDraft =
     view.kind === "draft" ? drafts.find((d) => d.id === view.id) ?? null : null;
 
@@ -153,14 +138,12 @@ export default function Home() {
           activeDraftId={view.kind === "draft" ? view.id : null}
           submissions={submissions}
           focusedHash={view.kind === "detail" ? view.hash : null}
-          compareHashes={compareHashes}
+          compareActive={view.kind === "compare"}
           onSelectDraft={(id) => setView({ kind: "draft", id })}
           onDiscardDraft={discardDraft}
           onFocus={(h) => setView({ kind: "detail", hash: h })}
-          onToggleCompare={toggleCompare}
           onNew={startNew}
-          onCompare={startCompare}
-          onClearCompare={() => setCompareHashes([])}
+          onCompare={() => setView({ kind: "compare" })}
         />
         <main className="main">
           <div className="main-toolbar">
@@ -169,8 +152,7 @@ export default function Home() {
                 activeDraft &&
                 (activeDraft.title.trim() || DEFAULT_TITLE)}
               {view.kind === "detail" && titleFor(view.hash)}
-              {view.kind === "compare" &&
-                `Compare: ${titleFor(view.hashes[0])} vs ${titleFor(view.hashes[1])}`}
+              {view.kind === "compare" && "Compare submissions"}
             </div>
           </div>
           {loadError && (
@@ -215,10 +197,7 @@ export default function Home() {
             />
           )}
           {view.kind === "compare" && (
-            <Compare
-              hashes={view.hashes}
-              titles={[titleFor(view.hashes[0]), titleFor(view.hashes[1])]}
-            />
+            <Compare submissions={submissions} titleFor={titleFor} />
           )}
         </main>
       </div>

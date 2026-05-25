@@ -8,14 +8,12 @@ type Props = {
   activeDraftId: string | null;
   submissions: SubmissionDto[];
   focusedHash: string | null;
-  compareHashes: string[];
+  compareActive: boolean;
   onSelectDraft: (id: string) => void;
   onDiscardDraft: (id: string) => void;
   onFocus: (hash: string) => void;
-  onToggleCompare: (hash: string) => void;
   onNew: () => void;
   onCompare: () => void;
-  onClearCompare: () => void;
 };
 
 function formatDate(ts: number | null): string {
@@ -41,27 +39,39 @@ export default function History({
   activeDraftId,
   submissions,
   focusedHash,
-  compareHashes,
+  compareActive,
   onSelectDraft,
   onDiscardDraft,
   onFocus,
-  onToggleCompare,
   onNew,
   onCompare,
-  onClearCompare,
 }: Props) {
   const isEmpty = drafts.length === 0 && submissions.length === 0;
 
   return (
     <aside className="history">
       <h2>History</h2>
-      <button className="new-btn" onClick={onNew}>
-        + New submission
-      </button>
+      <div className="history-actions">
+        <button className="new-btn" onClick={onNew}>
+          + New submission
+        </button>
+        <button
+          className={`compare-btn${compareActive ? " active" : ""}`}
+          onClick={onCompare}
+          disabled={submissions.length < 2}
+          title={
+            submissions.length < 2
+              ? "Need at least two submissions to compare"
+              : "Compare submissions"
+          }
+        >
+          ⇄ Compare
+        </button>
+      </div>
       <div className="columns">
         <div>Title</div>
         <div>Date</div>
-        <div style={{ textAlign: "center" }}>Compare</div>
+        <div />
       </div>
       <div className="rows">
         {isEmpty && <div className="empty">No submissions yet</div>}
@@ -77,7 +87,7 @@ export default function History({
             >
               <div>{d.title.trim() || "submission.py"}</div>
               <div>{formatDate(d.createdAt)}</div>
-              <div className="compare">
+              <div className="end-cell">
                 <button
                   className="discard"
                   title="Discard draft"
@@ -95,7 +105,6 @@ export default function History({
         })}
 
         {submissions.map((s, idx) => {
-          const checked = compareHashes.includes(s.hash);
           const active = focusedHash === s.hash;
           return (
             <div
@@ -106,39 +115,11 @@ export default function History({
             >
               <div>{resolveTitle(s.hash, idx)}</div>
               <div>{formatDate(s.createdAt)}</div>
-              <div
-                className="compare"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleCompare(s.hash);
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  readOnly
-                  aria-label="Compare"
-                />
-              </div>
+              <div className="end-cell" />
             </div>
           );
         })}
       </div>
-      {compareHashes.length > 0 && (
-        <div className="compare-bar">
-          <span>{compareHashes.length} selected</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={onClearCompare}>Clear</button>
-            <button
-              className="primary"
-              disabled={compareHashes.length !== 2}
-              onClick={onCompare}
-            >
-              Compare
-            </button>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

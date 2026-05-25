@@ -169,6 +169,9 @@ export const api = {
   getReport: (id: number) =>
     request<StrategyReport | null>(`/api/strategy/report/${id}`, { method: "GET" }),
 
+  getTradesCsv: (id: number) =>
+    request<string>(`/api/strategy/report/${id}/trades`, { method: "GET" }),
+
   getProfile: () =>
     request<ProfileResponse>("/api/user/profile", { method: "GET" }),
 

@@ -381,6 +381,113 @@ a:hover {
   background: #fff;
 }
 
+.run-artifacts .artifact-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ---- Trades table ---- */
+.trades-wrap {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.trades-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.trades-table th,
+.trades-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.trades-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--grid-head);
+  font-weight: 600;
+}
+
+.trades-table tbody tr:hover {
+  background: var(--row-hover);
+}
+
+/* ---- History action buttons ---- */
+.history-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 18px;
+}
+
+.history-actions .new-btn {
+  margin: 0;
+  flex: 1;
+}
+
+.compare-btn {
+  margin: 0;
+}
+
+.compare-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.history .row .end-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Compare view ---- */
+.compare-controls {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.compare-side {
+  flex: 1 1 0;
+  min-width: 260px;
+}
+
+.compare-side select {
+  flex: 1;
+  min-width: 0;
+}
+
+.compare-graphs {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.compare-graph {
+  flex: 1 1 0;
+  min-width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--section-bg);
+}
+
+.compare-graph .graph-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
 .body {
   flex: 1;
   display: flex;

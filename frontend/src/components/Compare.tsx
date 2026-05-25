@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, StrategyReport } from "../api/client";
+import { api, reportImageUrl, StrategyReport, SubmissionDto } from "../api/client";
 
 type Props = {
-  hashes: [string, string];
-  titles: [string, string];
+  submissions: SubmissionDto[];
+  titleFor: (hash: string) => string;
 };
 
 const METRIC_LABELS: Array<[keyof StrategyReport, string]> = [
@@ -29,80 +29,191 @@ function formatMetric(v: unknown): string {
   return v.toFixed(4);
 }
 
-function latestReport(reports: StrategyReport[]): StrategyReport | null {
-  if (reports.length === 0) return null;
-  return reports.reduce((acc, r) => (r.lastUpdated > acc.lastUpdated ? r : acc), reports[0]);
+function runLabel(r: StrategyReport): string {
+  const t = r.tickers ? ` · ${r.tickers}` : "";
+  return `#${r.strategyReportId} · ${r.status}${t}`;
 }
 
-export default function Compare({ hashes, titles }: Props) {
-  const [leftReports, setLeftReports] = useState<StrategyReport[]>([]);
-  const [rightReports, setRightReports] = useState<StrategyReport[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Loads the runs for a submission hash and tracks the selected run.
+function useSide(hash: string) {
+  const [runs, setRuns] = useState<StrategyReport[]>([]);
+  const [runId, setRunId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!hash) {
+      setRuns([]);
+      setRunId(null);
+      return;
+    }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    Promise.all([api.listReports(hashes[0]), api.listReports(hashes[1])])
-      .then(([a, b]) => {
+    api
+      .listReports(hash)
+      .then((r) => {
         if (cancelled) return;
-        setLeftReports(a);
-        setRightReports(b);
+        setRuns(r);
+        setRunId(r.length ? r[r.length - 1].strategyReportId : null);
       })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "Failed to load reports");
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
+      .catch(() => {
+        if (!cancelled) {
+          setRuns([]);
+          setRunId(null);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [hashes[0], hashes[1]]);
+  }, [hash]);
 
-  if (loading) {
+  const run = runs.find((r) => r.strategyReportId === runId) ?? null;
+  return { runs, runId, setRunId, run };
+}
+
+function SideControls({
+  label,
+  hash,
+  onHash,
+  side,
+  submissions,
+  titleFor,
+}: {
+  label: string;
+  hash: string;
+  onHash: (h: string) => void;
+  side: ReturnType<typeof useSide>;
+  submissions: SubmissionDto[];
+  titleFor: (hash: string) => string;
+}) {
+  return (
+    <div className="compare-side">
+      <div className="form-row" style={{ marginBottom: 8 }}>
+        <label>{label}</label>
+        <select value={hash} onChange={(e) => onHash(e.target.value)}>
+          {submissions.map((s) => (
+            <option key={s.hash} value={s.hash}>
+              {titleFor(s.hash)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row" style={{ marginBottom: 0 }}>
+        <label>Run</label>
+        <select
+          value={side.runId ?? ""}
+          onChange={(e) => side.setRunId(Number(e.target.value))}
+          disabled={side.runs.length === 0}
+        >
+          {side.runs.length === 0 && <option value="">No runs</option>}
+          {side.runs.map((r) => (
+            <option key={r.strategyReportId} value={r.strategyReportId}>
+              {runLabel(r)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function Graph({
+  title,
+  run,
+}: {
+  title: string;
+  run: StrategyReport | null;
+}) {
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [run?.strategyReportId]);
+
+  return (
+    <div className="compare-graph">
+      <div className="graph-title">{title}</div>
+      {run && !imgError ? (
+        <img
+          className="report-image"
+          src={reportImageUrl(run.strategyReportId)}
+          alt={title}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="empty" style={{ padding: 24 }}>
+          {run ? "Chart not available yet." : "No run selected."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Compare({ submissions, titleFor }: Props) {
+  const [hashA, setHashA] = useState<string>(submissions[0]?.hash ?? "");
+  const [hashB, setHashB] = useState<string>(
+    submissions[1]?.hash ?? submissions[0]?.hash ?? ""
+  );
+
+  const a = useSide(hashA);
+  const b = useSide(hashB);
+
+  if (submissions.length < 2) {
     return (
       <div className="main-content">
-        <div className="empty">
-          <span className="spinner" /> Loading…
-        </div>
+        <div className="empty">Need at least two submissions to compare.</div>
       </div>
     );
   }
 
-  const left = latestReport(leftReports);
-  const right = latestReport(rightReports);
+  const titleA = `${titleFor(hashA)}${a.run ? ` · #${a.run.strategyReportId}` : ""}`;
+  const titleB = `${titleFor(hashB)}${b.run ? ` · #${b.run.strategyReportId}` : ""}`;
 
   return (
     <div className="main-content">
-      {error && <div className="message error">{error}</div>}
-
-      {!left && !right && (
-        <div className="message error">
-          Neither submission has any runs to compare yet.
+      <div className="section">
+        <div className="compare-controls">
+          <SideControls
+            label="Submission A"
+            hash={hashA}
+            onHash={setHashA}
+            side={a}
+            submissions={submissions}
+            titleFor={titleFor}
+          />
+          <SideControls
+            label="Submission B"
+            hash={hashB}
+            onHash={setHashB}
+            side={b}
+            submissions={submissions}
+            titleFor={titleFor}
+          />
         </div>
-      )}
+      </div>
 
-      <div className="compare-grid">
-        <div className="cell head">Metric</div>
-        <div className="cell head">{titles[0]}</div>
-        <div className="cell head">{titles[1]}</div>
-        <div className="cell metric">Status</div>
-        <div className="cell">{left?.status ?? "—"}</div>
-        <div className="cell">{right?.status ?? "—"}</div>
-        <div className="cell metric">Tickers</div>
-        <div className="cell">{left?.tickers || "—"}</div>
-        <div className="cell">{right?.tickers || "—"}</div>
-        {METRIC_LABELS.map(([key, label]) => (
-          <div key={key} style={{ display: "contents" }}>
-            <div className="cell metric">{label}</div>
-            <div className="cell">{formatMetric(left?.[key])}</div>
-            <div className="cell">{formatMetric(right?.[key])}</div>
-          </div>
-        ))}
+      {/* Graphs first, side by side */}
+      <div className="compare-graphs">
+        <Graph title={titleA} run={a.run} />
+        <Graph title={titleB} run={b.run} />
+      </div>
+
+      {/* Metrics table below */}
+      <div className="section">
+        <div className="compare-grid">
+          <div className="cell head">Metric</div>
+          <div className="cell head">{titleA}</div>
+          <div className="cell head">{titleB}</div>
+          <div className="cell metric">Status</div>
+          <div className="cell">{a.run?.status ?? "—"}</div>
+          <div className="cell">{b.run?.status ?? "—"}</div>
+          <div className="cell metric">Tickers</div>
+          <div className="cell">{a.run?.tickers || "—"}</div>
+          <div className="cell">{b.run?.tickers || "—"}</div>
+          {METRIC_LABELS.map(([key, label]) => (
+            <div key={key} style={{ display: "contents" }}>
+              <div className="cell metric">{label}</div>
+              <div className="cell">{formatMetric(a.run?.[key])}</div>
+              <div className="cell">{formatMetric(b.run?.[key])}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
