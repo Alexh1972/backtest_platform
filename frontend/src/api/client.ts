@@ -12,6 +12,20 @@ export type BaseResponse = {
   status?: "SUCCESS" | "ERROR";
 };
 
+export type ProfileResponse = {
+  username?: string;
+  email?: string;
+  error?: { errors: string[] };
+  status?: "SUCCESS" | "ERROR";
+};
+
+export type UpdateUsernameResponse = {
+  message?: string;
+  token?: string;
+  error?: { errors: string[] };
+  status?: "SUCCESS" | "ERROR";
+};
+
 export type StrategyRunServerResponse = {
   message?: string;
   id?: number;
@@ -142,4 +156,19 @@ export const api = {
 
   getReport: (id: number) =>
     request<StrategyReport | null>(`/api/strategy/report/${id}`, { method: "GET" }),
+
+  getProfile: () =>
+    request<ProfileResponse>("/api/user/profile", { method: "GET" }),
+
+  updateUsername: (username: string) =>
+    request<UpdateUsernameResponse>("/api/user/username", {
+      method: "PUT",
+      body: JSON.stringify({ username }),
+    }),
+
+  updatePassword: (currentPassword: string, newPassword: string) =>
+    request<BaseResponse>("/api/user/password", {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };

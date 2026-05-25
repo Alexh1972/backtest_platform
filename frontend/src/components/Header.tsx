@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api, ApiError } from "../api/client";
 import { useAuth } from "../auth";
 import { useTheme } from "../theme";
 
@@ -33,11 +34,15 @@ function UserIcon() {
   );
 }
 
+type Dialog = "username" | "password" | null;
+
 export default function Header({ username }: { username?: string | null }) {
-  const { logout } = useAuth();
+  const { logout, setToken } = useAuth();
   const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +55,20 @@ export default function Header({ username }: { username?: string | null }) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  // Load the real email (the JWT only carries the username).
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getProfile()
+      .then((p) => {
+        if (!cancelled && p.status !== "ERROR") setEmail(p.email ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
 
   return (
     <header className="header">
@@ -75,27 +94,15 @@ export default function Header({ username }: { username?: string | null }) {
               </div>
               <div className="ud-info">
                 <div className="ud-name">{username ?? "User"}</div>
-                <div className="ud-email">email@placeholder.com</div>
+                <div className="ud-email">{email ?? "—"}</div>
               </div>
             </div>
 
             <div className="ud-section">
-              <button
-                className="ud-action"
-                title="Coming soon"
-                onClick={() => {
-                  /* not wired yet */
-                }}
-              >
+              <button className="ud-action" onClick={() => setDialog("password")}>
                 Change password
               </button>
-              <button
-                className="ud-action"
-                title="Coming soon"
-                onClick={() => {
-                  /* not wired yet */
-                }}
-              >
+              <button className="ud-action" onClick={() => setDialog("username")}>
                 Change username
               </button>
             </div>
@@ -132,6 +139,164 @@ export default function Header({ username }: { username?: string | null }) {
           </div>
         )}
       </div>
+
+      {dialog === "username" && (
+        <ChangeUsernameDialog
+          onClose={() => setDialog(null)}
+          onChanged={(newToken) => {
+            setToken(newToken);
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog === "password" && (
+        <ChangePasswordDialog onClose={() => setDialog(null)} />
+      )}
     </header>
+  );
+}
+
+function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ChangeUsernameDialog({
+  onClose,
+  onChanged,
+}: {
+  onClose: () => void;
+  onChanged: (newToken: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    setError(null);
+    if (!value.trim()) {
+      setError("Username cannot be empty.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.updateUsername(value.trim());
+      if (res.status === "ERROR" || !res.token) {
+        setError(res.error?.errors?.join(", ") || "Failed to change username");
+        return;
+      }
+      onChanged(res.token);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to change username");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal title="Change username" onClose={onClose}>
+      {error && <div className="message error">{error}</div>}
+      <div className="form-row">
+        <label>New username</label>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+        />
+      </div>
+      <div className="modal-actions">
+        <button onClick={onClose}>Cancel</button>
+        <button className="primary" disabled={loading} onClick={submit}>
+          {loading ? <span className="spinner" /> : "Save"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    setError(null);
+    if (!current || !next) {
+      setError("Both fields are required.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.updatePassword(current, next);
+      if (res.status === "ERROR") {
+        setError(res.error?.errors?.join(", ") || "Failed to change password");
+        return;
+      }
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to change password");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal title="Change password" onClose={onClose}>
+      {error && <div className="message error">{error}</div>}
+      {done ? (
+        <>
+          <div className="message ok">Password updated successfully.</div>
+          <div className="modal-actions">
+            <button className="primary" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="form-row">
+            <label>Current</label>
+            <input
+              type="password"
+              autoFocus
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </div>
+          <div className="form-row">
+            <label>New</label>
+            <input
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+          </div>
+          <div className="modal-actions">
+            <button onClick={onClose}>Cancel</button>
+            <button className="primary" disabled={loading} onClick={submit}>
+              {loading ? <span className="spinner" /> : "Save"}
+            </button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

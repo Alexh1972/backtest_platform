@@ -3,7 +3,7 @@ package com.backtest.dto.strategy;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
