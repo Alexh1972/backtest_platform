@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -28,13 +27,6 @@ public class StrategyReportService {
 
     public List<StrategyReport> getReport(Long id) {
         return strategyReportRepository.getReport(id);
-    }
-
-    public StrategyReport getLatestReport(String hash) {
-        return getReports(hash).stream()
-                .max(Comparator.comparing(report ->
-                        report.getLastUpdated() == null ? 0L : report.getLastUpdated()))
-                .orElse(null);
     }
 
     public void delete(Long id) {
