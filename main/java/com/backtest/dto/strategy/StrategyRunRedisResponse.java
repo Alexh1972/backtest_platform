@@ -4,15 +4,19 @@ import com.backtest.dto.stock.StockTopicRedisResponse;
 import com.backtest.model.StrategyReport;
 import lombok.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class StrategyRunRedisResponse {
     private Long id;
     private String tickers;
@@ -83,8 +87,13 @@ public class StrategyRunRedisResponse {
             return OffsetDateTime.parse(dateStr.replace(" ", "T"))
                     .withOffsetSameInstant(ZoneOffset.UTC)
                     .toLocalDateTime();
-        } catch (Exception e) {
-            return LocalDateTime.of(1970, 1, 1, 0, 0);
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(dateStr.trim()).atStartOfDay();
+            } catch (DateTimeParseException ex) {
+                log.error("Error while parsing date time: {}", dateStr, ex);
+                return LocalDateTime.of(1970, 1, 1, 0, 0);
+            }
         }
     }
 

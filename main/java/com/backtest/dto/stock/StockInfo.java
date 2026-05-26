@@ -1,20 +1,34 @@
 package com.backtest.dto.stock;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
 @Component
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StockInfo {
-    private Double Open;
-    private Double High;
-    private Double Low;
-    private Double Close;
-    private Long Volume;
-    private Double Dividends;
+    @JsonProperty("Open")
+    private Double open;
+
+    @JsonProperty("High")
+    private Double high;
+
+    @JsonProperty("Low")
+    private Double low;
+
+    @JsonProperty("Close")
+    private Double close;
+
+    @JsonProperty("Volume")
+    private Long volume;
+
+    @JsonProperty("Dividends")
+    private Double dividends;
 
     @JsonProperty("Stock Splits")
     private Double StockSplits;
-    private String Date;
+    @JsonProperty("Date")
+    private String date;
 }
