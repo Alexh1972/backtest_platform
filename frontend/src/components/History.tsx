@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import { SubmissionDto } from "../api/client";
-import { getTitle } from "../localStore";
 
 type DraftInfo = { id: string; title: string; createdAt: number };
 
@@ -14,7 +14,10 @@ type Props = {
   onFocus: (hash: string) => void;
   onNew: () => void;
   onCompare: () => void;
+  onDelete: (hash: string) => void;
 };
+
+type CtxMenu = { x: number; y: number; hash: string; name: string };
 
 function formatDate(ts: number | null): string {
   if (!ts) return "—";
@@ -23,15 +26,6 @@ function formatDate(ts: number | null): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
   return `${dd}/${mm}/${yy}`;
-}
-
-export function shortTitle(hash: string, idx: number): string {
-  return `submit${idx + 1}`;
-}
-
-// Prefer the user-chosen title (kept in localStorage); fall back to submitN.
-export function resolveTitle(hash: string, idx: number): string {
-  return getTitle(hash) ?? shortTitle(hash, idx);
 }
 
 export default function History({
@@ -45,8 +39,41 @@ export default function History({
   onFocus,
   onNew,
   onCompare,
+  onDelete,
 }: Props) {
   const isEmpty = drafts.length === 0 && submissions.length === 0;
+  const [menu, setMenu] = useState<CtxMenu | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => {
+      setMenu(null);
+      setConfirming(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  function openMenu(e: React.MouseEvent, hash: string, name: string) {
+    e.preventDefault();
+    setConfirming(false);
+    setMenu({ x: e.clientX, y: e.clientY, hash, name });
+  }
+
+  function closeMenu() {
+    setMenu(null);
+    setConfirming(false);
+  }
 
   return (
     <aside className="history">
@@ -106,20 +133,55 @@ export default function History({
 
         {submissions.map((s, idx) => {
           const active = focusedHash === s.hash;
+          const name = s.name || `submission ${idx + 1}`;
           return (
             <div
               key={s.hash}
               className={`row${active ? " active" : ""}`}
               onClick={() => onFocus(s.hash)}
+              onContextMenu={(e) => openMenu(e, s.hash, name)}
               title={s.hash}
             >
-              <div>{resolveTitle(s.hash, idx)}</div>
+              <div>{name}</div>
               <div>{formatDate(s.createdAt)}</div>
               <div className="end-cell" />
             </div>
           );
         })}
       </div>
+
+      {menu && (
+        <div
+          className="context-menu"
+          style={{ top: menu.y, left: menu.x }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {!confirming ? (
+            <button
+              className="ctx-item danger"
+              onClick={() => setConfirming(true)}
+            >
+              🗑 Delete submission
+            </button>
+          ) : (
+            <>
+              <div className="ctx-label">Delete “{menu.name}”?</div>
+              <button
+                className="ctx-item danger"
+                onClick={() => {
+                  onDelete(menu.hash);
+                  closeMenu();
+                }}
+              >
+                Yes, delete
+              </button>
+              <button className="ctx-item" onClick={closeMenu}>
+                Cancel
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

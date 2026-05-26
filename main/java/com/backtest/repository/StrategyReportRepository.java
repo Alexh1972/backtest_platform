@@ -14,6 +14,10 @@ public interface StrategyReportRepository extends JpaRepository<StrategyReport, 
     @Query("SELECT s FROM StrategyReport s where s.strategyReportId = ?1")
     List<StrategyReport> getReport(Long id);
 
+    // Latest run timestamp per submission hash, for ordering submissions by recency of last run.
+    @Query("SELECT s.fileHash, MAX(s.lastUpdated) FROM StrategyReport s WHERE s.fileHash IN ?1 GROUP BY s.fileHash")
+    List<Object[]> getLastRunByHashes(List<String> hashes);
+
     @Query(value = "SELECT * FROM strategy_report s WHERE s.status = 'RUNNING' " +
             "AND (((CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE) - TO_DATE('1970-01-01','YYYY-MM-DD')) * 86400000 - s.last_updated) >= 1200000 OR s.last_updated IS NULL)",
             nativeQuery = true)

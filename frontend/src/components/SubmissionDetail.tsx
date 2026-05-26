@@ -37,6 +37,10 @@ function formatMetric(v: unknown): string {
   return v.toFixed(4);
 }
 
+function sortRuns(reps: StrategyReport[]): StrategyReport[] {
+  return [...reps].sort((a, b) => a.strategyReportId - b.strategyReportId);
+}
+
 type Csv = { header: string[]; rows: string[][] };
 
 function parseCsv(text: string): Csv | null {
@@ -79,7 +83,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
           setCode(codeRes.message || "");
           setDraft(codeRes.message || "");
         }
-        setReports(reps);
+        setReports(sortRuns(reps));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -135,7 +139,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     setRefreshing(true);
     try {
       const reps = await api.listReports(hash);
-      setReports(reps);
+      setReports(sortRuns(reps));
     } catch {
       /* ignore */
     } finally {
@@ -157,7 +161,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
       start.setFullYear(start.getFullYear() - 1);
       const startStr = start.toISOString().slice(0, 10);
       const base64 = btoa(unescape(encodeURIComponent(draft)));
-      const res = await api.submitStrategy({ start: startStr, end: today, code: base64 });
+      const res = await api.submitStrategy({ start: startStr, end: today, code: base64, name: title });
       if (res.status === "ERROR") {
         setError(res.error?.errors?.join(", ") || "Submission failed");
         return;
@@ -375,7 +379,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
             api
               .listReports(hash)
               .then((reps) => {
-                setReports(reps);
+                setReports(sortRuns(reps));
                 setSelectedRunId(reportId);
               })
               .catch(() => undefined);

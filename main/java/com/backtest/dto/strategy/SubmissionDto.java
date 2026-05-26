@@ -10,9 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SubmissionDto {
     private String hash;
+    private String name;
     private Long createdAt;
 
     public static SubmissionDto from(Submission s) {
-        return new SubmissionDto(s.getHash(), s.getCreatedAt());
+        return new SubmissionDto(s.getHash(), s.getName(), s.getCreatedAt());
     }
 }

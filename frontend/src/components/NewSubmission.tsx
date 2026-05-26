@@ -45,7 +45,12 @@ export default function NewSubmission({
     setLoading(true);
     try {
       const base64 = btoa(unescape(encodeURIComponent(code)));
-      const res = await api.submitStrategy({ start, end, code: base64 });
+      const res = await api.submitStrategy({
+        start,
+        end,
+        code: base64,
+        name: title.trim() || "submission.py",
+      });
       if (res.status === "ERROR") {
         setError(res.error?.errors?.join(", ") || "Submission failed");
         return;

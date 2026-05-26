@@ -60,7 +60,10 @@ public class StrategyController {
             writer.write(new String(Base64.getDecoder().decode(body.getCode())));
             writer.flush();
 
-            submissionService.save(new Submission(user, hash));
+            String name = (body.getName() != null && !body.getName().isBlank())
+                    ? body.getName().trim()
+                    : "submission.py";
+            submissionService.save(new Submission(user, hash, name));
             return new BaseResponse(hash);
         } catch (Exception e) {
             log.error("Error while submitting strategy!", e);
@@ -77,6 +80,9 @@ public class StrategyController {
 
         if (submission != null) {
             StrategyReport strategyReport = new StrategyReport();
+            // Associate the run with its submission up front so it shows in the
+            // submission's run list immediately and counts toward "last run" ordering.
+            strategyReport.setFileHash(body.getFile());
             strategyReport = strategyReportService.save(strategyReport);
             body.setId(strategyReport.getStrategyReportId());
             strategyRunRequest.publish(body);
@@ -111,6 +117,38 @@ public class StrategyController {
         } catch (Exception e) {
             log.error("Error reading submission code for {}", hash, e);
             return new BaseResponse(new ErrorResponse("Error reading submission code"));
+        }
+    }
+
+    @DeleteMapping("/submission/{hash}")
+    @RequireAuth
+    public BaseResponse deleteSubmission(HttpServletRequest request, @PathVariable String hash) {
+        User user = AuthUtil.getUser(request);
+        Submission submission = submissionService.getSubmission(user, hash);
+
+        if (submission == null) {
+            return new BaseResponse(new ErrorResponse("Submission not found"));
+        }
+
+        // Remove this submission's run reports (and their artifact files).
+        for (StrategyReport report : strategyReportService.getReports(hash)) {
+            Long id = report.getStrategyReportId();
+            deleteQuietly(Paths.get("storage/equity_graphs/" + hash + "-" + id + ".png"));
+            deleteQuietly(Paths.get("storage/trades/" + hash + "-" + id + ".csv"));
+            strategyReportService.delete(id);
+        }
+
+        deleteQuietly(Paths.get("storage/scripts/" + hash + ".py"));
+        submissionService.delete(submission);
+
+        return new BaseResponse("Submission deleted.");
+    }
+
+    private void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (Exception e) {
+            log.warn("Could not delete {}", path, e);
         }
     }
 

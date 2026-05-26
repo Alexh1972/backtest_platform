@@ -24,12 +24,16 @@ public class Submission {
     @Id
     String hash;
 
+    @Column(name = "name")
+    String name;
+
     @Column(name = "created_at")
     Long createdAt;
 
-    public Submission(User user, String hash) {
+    public Submission(User user, String hash, String name) {
         this.user = user;
         this.hash = hash;
+        this.name = name;
         this.createdAt = System.currentTimeMillis();
     }
 }

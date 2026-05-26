@@ -4,7 +4,11 @@ export type SignInRequest = { username: string; password: string };
 export type SignUpRequest = { username: string; password: string; email: string };
 export type JwtAuthenticationResponse = { token: string };
 
-export type SubmissionDto = { hash: string; createdAt: number | null };
+export type SubmissionDto = {
+  hash: string;
+  name: string | null;
+  createdAt: number | null;
+};
 
 export type BaseResponse = {
   message?: string;
@@ -61,6 +65,7 @@ export type StrategySubmitRequest = {
   start: string;
   end: string;
   code: string;
+  name: string;
 };
 
 export type StrategyRunRequest = {
@@ -146,6 +151,11 @@ export const api = {
   getSubmissionCode: (hash: string) =>
     request<BaseResponse>(`/api/strategy/submission/${encodeURIComponent(hash)}/code`, {
       method: "GET",
+    }),
+
+  deleteSubmission: (hash: string) =>
+    request<BaseResponse>(`/api/strategy/submission/${encodeURIComponent(hash)}`, {
+      method: "DELETE",
     }),
 
   submitStrategy: (body: StrategySubmitRequest) =>

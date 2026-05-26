@@ -449,6 +449,45 @@ a:hover {
   justify-content: center;
 }
 
+/* ---- Right-click context menu ---- */
+.context-menu {
+  position: fixed;
+  z-index: 300;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  padding: 4px;
+  min-width: 190px;
+}
+
+.context-menu .ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.context-menu .ctx-item:hover {
+  background: var(--row-hover);
+}
+
+.context-menu .ctx-item.danger {
+  color: var(--danger);
+}
+
+.context-menu .ctx-label {
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* ---- Compare view ---- */
 .compare-controls {
   display: flex;

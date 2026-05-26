@@ -11,4 +11,5 @@ public class StrategySubmitRedisRequest {
     Date start;
     Date end;
     String code;
+    String name;
 }

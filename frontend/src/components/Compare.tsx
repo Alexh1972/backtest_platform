@@ -50,8 +50,11 @@ function useSide(hash: string) {
       .listReports(hash)
       .then((r) => {
         if (cancelled) return;
-        setRuns(r);
-        setRunId(r.length ? r[r.length - 1].strategyReportId : null);
+        const sorted = [...r].sort(
+          (x, y) => x.strategyReportId - y.strategyReportId
+        );
+        setRuns(sorted);
+        setRunId(sorted.length ? sorted[sorted.length - 1].strategyReportId : null);
       })
       .catch(() => {
         if (!cancelled) {

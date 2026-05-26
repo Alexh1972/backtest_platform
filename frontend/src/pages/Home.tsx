@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "../components/Header";
-import History, { resolveTitle } from "../components/History";
+import History from "../components/History";
 import NewSubmission from "../components/NewSubmission";
 import SubmissionDetail from "../components/SubmissionDetail";
 import Compare from "../components/Compare";
 import { api, ApiError, SubmissionDto } from "../api/client";
-import { setTitle } from "../localStore";
 import { useAuth } from "../auth";
 import { useNavigate } from "react-router-dom";
 
@@ -96,8 +95,8 @@ export default function Home() {
 
   const titleFor = useCallback(
     (hash: string): string => {
-      const idx = submissions.findIndex((s) => s.hash === hash);
-      return idx >= 0 ? resolveTitle(hash, idx) : hash.slice(0, 8);
+      const s = submissions.find((x) => x.hash === hash);
+      return s?.name || hash.slice(0, 8);
     },
     [submissions]
   );
@@ -126,6 +125,18 @@ export default function Home() {
     }
   }
 
+  async function deleteSubmission(hash: string) {
+    try {
+      await api.deleteSubmission(hash);
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete submission");
+    }
+    await refresh();
+    setView((cur) =>
+      cur.kind === "detail" && cur.hash === hash ? { kind: "empty" } : cur
+    );
+  }
+
   const activeDraft =
     view.kind === "draft" ? drafts.find((d) => d.id === view.id) ?? null : null;
 
@@ -144,6 +155,7 @@ export default function Home() {
           onFocus={(h) => setView({ kind: "detail", hash: h })}
           onNew={startNew}
           onCompare={() => setView({ kind: "compare" })}
+          onDelete={deleteSubmission}
         />
         <main className="main">
           <div className="main-toolbar">
@@ -177,8 +189,7 @@ export default function Home() {
               start={activeDraft.start}
               end={activeDraft.end}
               onChange={(patch) => updateDraft(activeDraft.id, patch)}
-              onSubmitted={async (hash, title) => {
-                setTitle(hash, title);
+              onSubmitted={async (hash) => {
                 setDrafts((prev) => prev.filter((d) => d.id !== activeDraft.id));
                 await refresh();
                 setView({ kind: "detail", hash });
