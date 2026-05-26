@@ -201,10 +201,7 @@ export default function Home() {
               key={view.hash}
               hash={view.hash}
               title={titleFor(view.hash)}
-              onResubmitted={async (newHash) => {
-                await refresh();
-                setView({ kind: "detail", hash: newHash });
-              }}
+              onSubmissionsRefresh={refresh}
             />
           )}
           {view.kind === "compare" && (

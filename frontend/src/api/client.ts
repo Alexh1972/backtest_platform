@@ -158,6 +158,12 @@ export const api = {
       method: "DELETE",
     }),
 
+  updateSubmissionCode: (hash: string, code: string) =>
+    request<BaseResponse>(`/api/strategy/submission/${encodeURIComponent(hash)}/code`, {
+      method: "PUT",
+      body: JSON.stringify({ code }),
+    }),
+
   submitStrategy: (body: StrategySubmitRequest) =>
     request<BaseResponse>("/api/strategy/submit", {
       method: "POST",

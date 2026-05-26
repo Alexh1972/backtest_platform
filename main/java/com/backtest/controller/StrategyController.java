@@ -120,6 +120,29 @@ public class StrategyController {
         }
     }
 
+    // Overwrite the code of an existing submission in place (same hash, no new history entry).
+    @PutMapping("/submission/{hash}/code")
+    @RequireAuth
+    public BaseResponse updateSubmissionCode(HttpServletRequest request, @PathVariable String hash,
+                                             @RequestBody StrategySubmitRedisRequest body) {
+        User user = AuthUtil.getUser(request);
+        Submission submission = submissionService.getSubmission(user, hash);
+
+        if (submission == null) {
+            return new BaseResponse(new ErrorResponse("Submission not found"));
+        }
+
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                Paths.get("storage/scripts/" + hash + ".py"), StandardCharsets.UTF_8)) {
+            writer.write(new String(Base64.getDecoder().decode(body.getCode())));
+            writer.flush();
+            return new BaseResponse(hash);
+        } catch (Exception e) {
+            log.error("Error while updating strategy code for {}", hash, e);
+            return new BaseResponse(new ErrorResponse("Error while updating strategy code!"));
+        }
+    }
+
     @DeleteMapping("/submission/{hash}")
     @RequireAuth
     public BaseResponse deleteSubmission(HttpServletRequest request, @PathVariable String hash) {

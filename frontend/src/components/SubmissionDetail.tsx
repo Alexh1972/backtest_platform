@@ -11,7 +11,7 @@ import RunModal from "./RunModal";
 type Props = {
   hash: string;
   title: string;
-  onResubmitted: (newHash: string) => void;
+  onSubmissionsRefresh: () => void | Promise<void>;
 };
 
 const METRIC_LABELS: Array<[keyof StrategyReport, string]> = [
@@ -52,7 +52,7 @@ function parseCsv(text: string): Csv | null {
   };
 }
 
-export default function SubmissionDetail({ hash, title, onResubmitted }: Props) {
+export default function SubmissionDetail({ hash, title, onSubmissionsRefresh }: Props) {
   const [code, setCode] = useState<string>("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>("");
@@ -66,6 +66,8 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [imgError, setImgError] = useState(false);
   const [trades, setTrades] = useState<Csv | null>(null);
+  // Bumped on Refresh to force the chart + trades to reload (cache-busting).
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,13 +135,17 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     return () => {
       cancelled = true;
     };
-  }, [selectedRunId]);
+  }, [selectedRunId, reloadTick]);
 
   async function refreshReports() {
     setRefreshing(true);
     try {
       const reps = await api.listReports(hash);
       setReports(sortRuns(reps));
+      // Force the chart + trades of the selected run to reload as well.
+      setReloadTick((t) => t + 1);
+      // Re-sort the History list so this (just-run) submission moves to the top.
+      await onSubmissionsRefresh();
     } catch {
       /* ignore */
     } finally {
@@ -147,7 +153,8 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     }
   }
 
-  async function resubmit() {
+  // Save edits to the existing submission in place (same hash, no new history entry).
+  async function saveCode() {
     setError(null);
     setInfo(null);
     if (!draft.trim()) {
@@ -156,23 +163,17 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
     }
     setResubmitting(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const start = new Date();
-      start.setFullYear(start.getFullYear() - 1);
-      const startStr = start.toISOString().slice(0, 10);
       const base64 = btoa(unescape(encodeURIComponent(draft)));
-      const res = await api.submitStrategy({ start: startStr, end: today, code: base64, name: title });
+      const res = await api.updateSubmissionCode(hash, base64);
       if (res.status === "ERROR") {
-        setError(res.error?.errors?.join(", ") || "Submission failed");
+        setError(res.error?.errors?.join(", ") || "Update failed");
         return;
       }
-      const newHash = res.message;
-      if (newHash) {
-        setInfo("New submission created.");
-        onResubmitted(newHash);
-      }
+      setCode(draft);
+      setEditing(false);
+      setInfo("Code updated.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Submission failed");
+      setError(err instanceof ApiError ? err.message : "Update failed");
     } finally {
       setResubmitting(false);
     }
@@ -219,10 +220,10 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
             <button
               className="primary"
               disabled={resubmitting || !editing}
-              title={editing ? "Submit edited code as a new submission" : "Click Edit code to make a new submission"}
-              onClick={resubmit}
+              title={editing ? "Save changes to this submission" : "Click Edit code to change this submission"}
+              onClick={saveCode}
             >
-              {resubmitting ? <span className="spinner" /> : "Submit"}
+              {resubmitting ? <span className="spinner" /> : "Save"}
             </button>
             <button
               className="primary"
@@ -316,7 +317,7 @@ export default function SubmissionDetail({ hash, title, onResubmitted }: Props) 
                   ) : (
                     <img
                       className="report-image"
-                      src={reportImageUrl(selected.strategyReportId)}
+                      src={`${reportImageUrl(selected.strategyReportId)}&r=${reloadTick}`}
                       alt={`Equity curve for run ${selected.strategyReportId}`}
                       onError={() => setImgError(true)}
                     />
